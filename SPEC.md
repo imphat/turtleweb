@@ -139,8 +139,8 @@ Os arquivos `corpus/*.esperado.json` mostram o resultado esperado de cada progra
    a cor dos pontos principais confere (por exemplo, o centro de uma bolinha vermelha é vermelho).
 4. **Interativos** (`interativo_ou_aleatorio`): rodam sem erro com eventos simulados (clique, tecla, timer, `textinput`); escreva
    você os eventos e o que esperar.
-5. **Desempenho**: a espiral e os carimbos (`referencia-espiral`, `referencia-carimbos`) terminam de aparecer em poucos segundos
-   num computador comum, sem travar a página.
+5. **Desempenho**: a espiral e os carimbos (`referencia-espiral`, `referencia-carimbos`) terminam de aparecer tão rápido quanto no
+   Tk (com opção de acelerar pelo botão "Mais rápido"), sem travar a página. (Decisão do João, `DECISOES.md`.)
 6. **Safari/iPad**: quem testa é o João; deixe um `TESTE-IPAD.md` com o passo a passo e o que observar.
 
 ## 8. Prioridade dos comandos

@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "turtleweb"
+version = "0.1.0"
+description = "Faz o import turtle de um programa Python desenhar dentro do navegador"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+dependencies = []
+
+[project.optional-dependencies]
+flask = ["flask>=2.0"]
+test = ["pytest", "flask", "playwright"]
+
+[tool.setuptools]
+packages = ["turtleweb", "turtleweb._boot"]
+
+[tool.setuptools.package-data]
+turtleweb = ["static/*.js"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["browser: needs Playwright + Chromium", "tk: needs Tkinter and xvfb"]
