@@ -19,6 +19,62 @@ TERMINAL = ("ended", "error", "stopped")
 # What the page may send to the program (everything else is dropped).
 PAGE_MESSAGES = ("mousedown", "mouseup", "mousemove", "keydown", "keyup", "answer", "close", "speed")
 MAX_OUTPUT = 200_000
+COMPACT_AT = 3000  # events kept before the history is replaced by a snapshot of the drawing
+
+
+class _Model:
+    """What the page would be showing: lets a long run forget its history (and a late page start from a snapshot)."""
+
+    def __init__(self):
+        self.items = {}
+        self.order = []
+        self.bg = None
+        self.geometry = None
+        self.title = None
+        self.listening = False
+
+    def apply(self, op):
+        name = op[0]
+        if name == "create":
+            self.items[op[1]] = [op[2], op[3], dict(op[4])]
+            self.order.append(op[1])
+        elif name == "coords" and op[1] in self.items:
+            self.items[op[1]][1] = op[2]
+        elif name == "config" and op[1] in self.items:
+            self.items[op[1]][2].update(op[2])
+        elif name in ("raise", "lower") and op[1] in self.items:
+            self.order.remove(op[1])
+            self.order.append(op[1]) if name == "raise" else self.order.insert(0, op[1])
+        elif name == "delete":
+            if op[1] == "all":
+                self.items.clear()
+                self.order.clear()
+            elif op[1] in self.items:
+                del self.items[op[1]]
+                self.order.remove(op[1])
+        elif name == "bg":
+            self.bg = op[1]
+        elif name == "geometry":
+            self.geometry = op[1:3]
+        elif name == "title":
+            self.title = op[1]
+        elif name == "listen":
+            self.listening = True
+
+    def snapshot(self):
+        ops = []
+        if self.geometry:
+            ops.append(["geometry"] + list(self.geometry))
+        if self.bg:
+            ops.append(["bg", self.bg])
+        if self.title:
+            ops.append(["title", self.title])
+        for i in self.order:
+            kind, coords, opts = self.items[i]
+            ops.append(["create", i, kind, coords, opts])
+        if self.listening:
+            ops.append(["listen"])
+        return {"t": "ops", "reset": True, "ops": ops}
 
 
 def child_env(session=None, env=None, log=None):
@@ -45,12 +101,15 @@ class Session:
         self.token = secrets.token_hex(16)
         self.state = "starting"
         self.code = None
-        self.events = []  # everything the page needs, in order
+        self.events = []  # everything the page needs, in order (SSE id = position + _dropped)
+        self._dropped = 0
+        self._model = _Model()
         self.stderr = ""
         self.proc = None
         self._cond = threading.Condition()
         self._conn = None
         self._send_lock = threading.Lock()
+        self._pending = []  # page messages that arrived before the program connected
         self._stopped = False
         self._finalized = False
         self._child_end = None
@@ -120,6 +179,9 @@ class Session:
                 self._conn = conn
                 self._listener.close()
                 self._set_state("running")
+                pending, self._pending = self._pending, []
+                for msg in pending:
+                    self.send(msg)
                 self._reader = threading.Thread(target=self._read, args=(conn, first[1]), daemon=True)
                 self._reader.start()
                 return
@@ -153,7 +215,13 @@ class Session:
                 self._child_end = self.child_end = msg
             elif kind == "state":
                 self._set_state(msg.get("s"))
-            elif kind in ("ops", "ask"):
+            elif kind == "ops":
+                for op in msg["ops"]:
+                    self._model.apply(op)
+                self._push(msg, raw=line)
+                if len(self.events) > COMPACT_AT:
+                    self._compact()
+            elif kind == "ask":
                 self._push(msg, raw=line)
         if self.proc is None:  # nobody else will tell us how it ended
             self._finalize((self._child_end or {}).get("code"))
@@ -163,6 +231,14 @@ class Session:
     def _push(self, msg, raw=None):
         with self._cond:
             self.events.append(raw.decode("utf-8") if raw is not None else json.dumps(msg, separators=(",", ":")))
+            self._cond.notify_all()
+
+    def _compact(self):
+        with self._cond:
+            state = {"t": "state", "s": self.state, "code": self.code}
+            self._dropped += len(self.events) - 2
+            self.events = [json.dumps(self._model.snapshot(), separators=(",", ":")),
+                           json.dumps(state, separators=(",", ":"))]
             self._cond.notify_all()
 
     def _set_state(self, state, code=None):
@@ -177,7 +253,8 @@ class Session:
         if self._child_end is not None and code is None:
             code = self._child_end.get("code")
         self.code = code
-        state = "stopped" if self._stopped else ("ended" if code in (0, None) else "error")
+        # a negative code means a signal: the app (or the user) ended it, not the program's own error
+        state = "stopped" if self._stopped or (code or 0) < 0 else ("ended" if code in (0, None) else "error")
         self._set_state(state, code)
         if self._conn is not None:
             try:
@@ -190,23 +267,25 @@ class Session:
             pass
 
     def iter_events(self, start=0, timeout=15.0):
-        """Yield (index, json_text) forever; yields None every `timeout` seconds as a keepalive.
+        """Yield (id, json_text) forever; yields None every `timeout` seconds as a keepalive.
 
+        `start` is an absolute id. If history was compacted past it, the snapshot comes first.
         Returns after the terminal state has been yielded.
         """
         i = start
         while True:
             with self._cond:
-                if i >= len(self.events):
+                if i >= self._dropped + len(self.events):
                     self._cond.wait(timeout)
-                chunk = list(enumerate(self.events[i:], i))
+                first = max(i - self._dropped, 0)
+                chunk = [(self._dropped + k, text) for k, text in enumerate(self.events[first:], first)]
             if not chunk:
                 yield None
                 continue
-            for idx, text in chunk:
-                yield idx, text
+            for item in chunk:
+                yield item
             i = chunk[-1][0] + 1
-            if self.state in TERMINAL and i >= len(self.events):
+            if self.state in TERMINAL and i >= self._dropped + len(self.events):
                 return
 
     def wait_done(self, timeout=60.0):
@@ -223,7 +302,12 @@ class Session:
         """Forward a message from the page to the program. Returns False if it was dropped."""
         if isinstance(msg, list):  # the page batches messages to keep their order
             return all([self.send(m) for m in msg]) if msg else False
-        if not isinstance(msg, dict) or msg.get("t") not in PAGE_MESSAGES or self._conn is None:
+        if not isinstance(msg, dict) or msg.get("t") not in PAGE_MESSAGES:
+            return False
+        if self._conn is None:
+            if self.state == "starting" and len(self._pending) < 100:
+                self._pending.append(msg)   # delivered as soon as the program connects
+                return True
             return False
         data = (json.dumps(msg, separators=(",", ":")) + "\n").encode("utf-8")
         with self._send_lock:
@@ -247,7 +331,7 @@ class Session:
             self._finalize(None)
 
     def snapshot(self):
-        return {"sid": self.sid, "state": self.state, "code": self.code, "events": len(self.events)}
+        return {"sid": self.sid, "state": self.state, "code": self.code, "events": self._dropped + len(self.events)}
 
 
 class Hub:

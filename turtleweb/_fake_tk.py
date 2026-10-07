@@ -12,6 +12,7 @@ import math
 import os
 import re
 import sys
+import threading
 import time
 import traceback
 import types
@@ -22,7 +23,12 @@ from ._colors import TK_COLORS
 NO_DELAY = os.environ.get("TURTLEWEB_NO_DELAY") == "1"
 MAX_BATCH = 2000  # ops buffered before a forced flush
 
+MIN_INTERVAL = 0.016  # at most ~60 batches per second (the page draws once per frame anyway)
+
 _batch = []
+_lock = threading.Lock()
+_last_flush = [0.0]
+_timer = [None]
 _unknown = set()
 _stats = {"ops": 0, "batches": 0}
 _speed = [1.0]  # "Mais rápido": the animation delays are divided by this
@@ -62,30 +68,50 @@ def _css(color):
 # --- output -----------------------------------------------------------------
 
 def _emit(*op):
-    _batch.append(list(op))
-    if len(_batch) >= MAX_BATCH:
-        flush()
+    with _lock:
+        _batch.append(list(op))
+        big = len(_batch) >= MAX_BATCH
+    if big:
+        flush(force=True)
 
 
 def _compact(ops):
     """Keep only the last `coords` of each item inside one batch."""
     last = {}
+    count = 0
     for i, op in enumerate(ops):
         if op[0] == "coords":
             last[op[1]] = i
-    if len(last) == sum(1 for op in ops if op[0] == "coords"):
+            count += 1
+    if len(last) == count:
         return ops
     return [op for i, op in enumerate(ops) if op[0] != "coords" or last[op[1]] == i]
 
 
-def flush():
+def flush(force=False):
+    """Send the buffered ops. Not forced: at most one batch per MIN_INTERVAL; a timer sends the rest."""
     global _batch
-    if not _batch:
+    now = time.monotonic()
+    if not force and now - _last_flush[0] < MIN_INTERVAL:
+        with _lock:
+            if _batch and _timer[0] is None:
+                _timer[0] = threading.Timer(MIN_INTERVAL, _timed_flush)
+                _timer[0].daemon = True
+                _timer[0].start()
         return
-    ops, _batch = _compact(_batch), []
-    _stats["ops"] += len(ops)
-    _stats["batches"] += 1
-    _channel.send({"t": "ops", "ops": ops})
+    with _lock:
+        if not _batch:
+            return
+        ops, _batch = _compact(_batch), []
+        _last_flush[0] = now
+        _stats["ops"] += len(ops)
+        _stats["batches"] += 1
+        _channel.send({"t": "ops", "ops": ops})  # inside the lock: batches must not overtake each other
+
+
+def _timed_flush():
+    _timer[0] = None
+    flush(force=True)
 
 
 # --- event loop (timers, incoming messages, dialogs) --------------------------
@@ -282,20 +308,20 @@ class Tk(Misc):
     def destroy(self):
         self._alive = False
         _emit("closed")
-        flush()
+        flush(force=True)
 
     def update(self):
         _pump()
 
     def mainloop(self, n=0):
-        flush()
+        flush(force=True)
         if not _channel.connected():
             return  # headless run (tests, command log only): nothing to wait for
         _channel.send({"t": "state", "s": "waiting"})
         while self._alive:
             _drain()
             _run_due_timers()
-            flush()
+            flush(force=True)
             if not self._alive:
                 break
             _wait(_next_timeout())
@@ -486,9 +512,10 @@ class Canvas(Misc):
     def after(self, ms, func=None, *args):
         if func is None:
             # a plain delay: this is the turtle animation speed
-            flush()
+            pause = ms / 1000.0 / _speed[0]
+            flush(force=pause >= MIN_INTERVAL)
             if not NO_DELAY and ms > 0 and _channel.connected():
-                time.sleep(ms / 1000.0 / _speed[0])
+                time.sleep(pause)
             return None
         return _schedule(ms, func, args)
 
@@ -648,7 +675,7 @@ def _ask(kind, title, prompt, initial=None, minvalue=None, maxvalue=None):
     """Ask the page and block for the answer. Returns None on cancel or window close."""
     error = None
     while True:
-        flush()
+        flush(force=True)
         _ask_id[0] += 1
         msg = {"t": "ask", "id": _ask_id[0], "kind": kind, "title": title, "prompt": prompt,
                "initial": initial, "min": minvalue, "max": maxvalue, "error": error}
@@ -709,6 +736,6 @@ def _ask_integer(title, prompt, **kw):
 
 
 def finish(code):
-    flush()
+    flush(force=True)
     _channel.send({"t": "end", "code": code, "stats": _stats, "unknown": sorted(_unknown)})
     _channel.close()

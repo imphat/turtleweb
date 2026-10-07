@@ -76,6 +76,11 @@
     this.root = el("div", {className: "tw"}, [bar, this.askForm, this.stage, this.pad]);
     root.append(this.root);
     this.fast = false;
+    this.speedFactor = 1;
+    // prefers-reduced-motion: no walking animation; the drawing itself is unchanged
+    this.reduceMotion = this.opts.reduceMotion !== undefined ? !!this.opts.reduceMotion
+      : !!(global.matchMedia && global.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    if (this.reduceMotion) { this.fast = true; this.speedFactor = INSTANT; this.fastBtn.textContent = "Velocidade normal"; }
     this.listening = false;
     this.outbox = [];
     this.sending = false;
@@ -87,10 +92,13 @@
     requestAnimationFrame(frame);
   };
 
-  TurtleWeb.prototype.setFast = function (on) {
+  const FAST = 8, INSTANT = 1000;
+
+  TurtleWeb.prototype.setFast = function (on, factor) {
     this.fast = on;
+    this.speedFactor = on ? (factor || FAST) : 1;
     this.fastBtn.textContent = on ? "Velocidade normal" : "Mais rápido";
-    this.send({t: "speed", v: on ? 8 : 1});
+    this.send({t: "speed", v: this.speedFactor});
   };
 
   TurtleWeb.prototype.layout = function () {
@@ -104,6 +112,7 @@
 
   TurtleWeb.prototype.setState = function (s, code) {
     this.state = s;
+    this.code = code;
     let text = STATES[s] || s;
     if (s === "error" && code != null) text += " (código " + code + ")";
     this.stateEl.textContent = text;
@@ -138,8 +147,15 @@
     this.layout();
     this.askForm.hidden = true;
     this.setState("starting");
-    this.es = new EventSource(this.base + "/events/" + encodeURIComponent(sid));
-    this.es.onmessage = ev => this.onMessage(JSON.parse(ev.data));
+    if (this.fast) this.send({t: "speed", v: this.speedFactor});
+    const es = this.es = new EventSource(this.base + "/events/" + encodeURIComponent(sid));
+    es.onmessage = ev => this.onMessage(JSON.parse(ev.data));
+    es.onopen = () => this.setState(this.state, this.code);
+    es.onerror = () => {            // the browser retries by itself and resumes from Last-Event-ID
+      if (TERMINAL[this.state]) return;
+      this.stateEl.textContent = es.readyState === 2 ? "sem conexão com o servidor" : "reconectando…";
+      if (this.opts.onstate) this.opts.onstate("offline");
+    };
   };
 
   TurtleWeb.prototype.detach = function () {
@@ -148,7 +164,11 @@
 
   TurtleWeb.prototype.onMessage = function (m) {
     switch (m.t) {
-      case "ops": for (const op of m.ops) this.apply(op); this.dirty = true; break;
+      case "ops":
+        if (m.reset) { this.items.clear(); this.order = []; }   // a snapshot replaces what was drawn so far
+        for (const op of m.ops) this.apply(op);
+        this.dirty = true;
+        break;
       case "state":
         this.setState(m.s, m.code);
         if (TERMINAL[m.s]) { this.askForm.hidden = true; this.detach(); }
