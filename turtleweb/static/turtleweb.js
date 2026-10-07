@@ -23,6 +23,9 @@
 .tw-ask{margin:.5rem 0;padding:.6rem;border:1px solid #4a7;border-radius:.4rem;background:#f2fbf5}
 .tw-ask input{font:inherit;padding:.3rem;min-width:12rem}
 .tw-ask .tw-err{color:#b00;margin:.3rem 0 0}
+.tw-pad{display:grid;grid-template-columns:repeat(3,3.6rem);grid-template-rows:repeat(2,3.2rem) 2.6rem;gap:.4rem;margin:.6rem 0;user-select:none;-webkit-user-select:none;touch-action:none}
+.tw-pad button{padding:0;font-size:1.4rem;touch-action:none}
+.tw-pad .tw-space{font-size:1rem}
 .tw [hidden]{display:none!important}
 @media (prefers-color-scheme:dark){.tw button{background:#333;color:#eee;border-color:#777}.tw-ask{background:#1c2b22}}
 `;
@@ -50,6 +53,8 @@
     this.bg = "#ffffff";
     this.w = 640; this.h = 600;
     this.dirty = true;
+    this.listening = false;
+    if (this.pad) this.updatePad();
   };
 
   TurtleWeb.prototype.build = function (root) {
@@ -67,9 +72,15 @@
     const bar = el("div", {className: "tw-bar"}, [this.stateEl, this.closeBtn, this.fastBtn]);
     this.askForm = el("form", {className: "tw-ask", hidden: true});
     this.stage = el("div", {className: "tw-stage"}, [this.canvas]);
-    this.root = el("div", {className: "tw"}, [bar, this.askForm, this.stage]);
+    this.pad = this.buildPad();
+    this.root = el("div", {className: "tw"}, [bar, this.askForm, this.stage, this.pad]);
     root.append(this.root);
     this.fast = false;
+    this.listening = false;
+    this.outbox = [];
+    this.sending = false;
+    this.pressed = new Set();
+    this.bindInput();
     this.setState("starting");
     this.layout();
     const frame = () => { if (this.dirty) { this.dirty = false; this.draw(); } requestAnimationFrame(frame); };
@@ -98,19 +109,31 @@
     this.stateEl.textContent = text;
     this.closeBtn.disabled = !(s === "running" || s === "waiting");
     this.root.dataset.state = s;
+    if (this.pad) this.updatePad();
     if (this.opts.onstate) this.opts.onstate(s, code);
   };
 
+  // Messages go out one request at a time and in a batch, so their order is kept.
   TurtleWeb.prototype.send = function (msg) {
-    if (!this.sid) return Promise.resolve();
-    return fetch(this.base + "/input/" + encodeURIComponent(this.sid), {
-      method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(msg),
-    }).catch(() => {});
+    if (!this.sid) return;
+    this.outbox.push(msg);
+    this.flushOut();
+  };
+
+  TurtleWeb.prototype.flushOut = function () {
+    if (this.sending || !this.outbox.length) return;
+    this.sending = true;
+    const batch = this.outbox.splice(0);
+    fetch(this.base + "/input/" + encodeURIComponent(this.sid), {
+      method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(batch),
+    }).catch(() => {}).finally(() => { this.sending = false; this.flushOut(); });
   };
 
   TurtleWeb.prototype.attach = function (sid) {
     this.detach();
     this.sid = sid;
+    this.outbox = [];
+    this.pressed.clear();
     this.reset();
     this.layout();
     this.askForm.hidden = true;
@@ -148,6 +171,7 @@
         else { this.items.delete(a); this.order = this.order.filter(x => x !== a); }
         break;
       case "bg": this.bg = a; break;
+      case "listen": this.listening = true; this.updatePad(); this.canvas.focus({preventScroll: true}); break;
       case "geometry": this.w = a; this.h = b; this.layout(); break;
       case "title": if (this.opts.title !== false && a) document.title = a; break;
     }
@@ -189,6 +213,115 @@
         ctx.fillText(o.text || "", p[0], p[1]);
       }
     }
+  };
+
+  // ---- input: mouse, touch, keyboard, arrow buttons ----
+
+  const KEYSYMS = {
+    ArrowUp: "Up", ArrowDown: "Down", ArrowLeft: "Left", ArrowRight: "Right", " ": "space", Enter: "Return",
+    Escape: "Escape", Backspace: "BackSpace", Tab: "Tab", Delete: "Delete", Home: "Home", End: "End",
+    PageUp: "Prior", PageDown: "Next", Shift: "Shift_L", Control: "Control_L", Alt: "Alt_L",
+    "+": "plus", "-": "minus", "*": "asterisk", "/": "slash", ".": "period", ",": "comma", ";": "semicolon",
+    ":": "colon", "=": "equal", "!": "exclam", "?": "question", "(": "parenleft", ")": "parenright",
+    "'": "apostrophe", '"': "quotedbl", "@": "at", "#": "numbersign", "$": "dollar", "%": "percent",
+    "&": "ampersand", "_": "underscore", "<": "less", ">": "greater", "[": "bracketleft",
+    "]": "bracketright", "\\": "backslash", "{": "braceleft", "}": "braceright", "|": "bar",
+    "~": "asciitilde", "^": "asciicircum", "`": "grave",
+  };
+  const SCROLL_KEYS = {Up: 1, Down: 1, Left: 1, Right: 1, space: 1, Prior: 1, Next: 1, Home: 1, End: 1};
+
+  function keysym(e) {
+    if (KEYSYMS[e.key]) return KEYSYMS[e.key];
+    if (/^F\d{1,2}$/.test(e.key)) return e.key;
+    if (e.key.length === 1) return e.key;
+    return null;
+  }
+
+  TurtleWeb.prototype.keyEvent = function (down, sym, ch) {
+    if (down) this.pressed.add(sym); else this.pressed.delete(sym);
+    this.send({t: down ? "keydown" : "keyup", k: sym, c: ch || ""});
+  };
+
+  TurtleWeb.prototype.point = function (ev) {
+    const r = this.canvas.getBoundingClientRect();
+    return {x: (ev.clientX - r.left) * this.w / r.width, y: (ev.clientY - r.top) * this.h / r.height};
+  };
+
+  TurtleWeb.prototype.bindInput = function () {
+    const cv = this.canvas;
+    let button = 0, moveEv = null, raf = 0;
+    const tkButton = ev => ev.button === 0 ? 1 : ev.button === 1 ? 2 : 3;
+    cv.addEventListener("contextmenu", ev => ev.preventDefault());
+    cv.addEventListener("pointerdown", ev => {
+      if (button) return;
+      button = tkButton(ev);
+      cv.focus({preventScroll: true});
+      try { cv.setPointerCapture(ev.pointerId); } catch (e) { /* synthetic events */ }
+      this.send(Object.assign({t: "mousedown", b: button}, this.point(ev)));
+    });
+    cv.addEventListener("pointermove", ev => {
+      if (!button) return;
+      moveEv = ev;
+      if (!raf) raf = requestAnimationFrame(() => {
+        raf = 0;
+        if (moveEv) this.send(Object.assign({t: "mousemove", b: button}, this.point(moveEv)));
+        moveEv = null;
+      });
+    });
+    const up = ev => {
+      if (!button) return;
+      moveEv = null;
+      this.send(Object.assign({t: "mouseup", b: button}, this.point(ev)));
+      button = 0;
+    };
+    cv.addEventListener("pointerup", up);
+    cv.addEventListener("pointercancel", up);
+
+    const typing = ev => /^(INPUT|TEXTAREA|SELECT)$/.test((ev.target && ev.target.tagName) || "");
+    document.addEventListener("keydown", ev => {
+      if (typing(ev) || ev.ctrlKey || ev.metaKey || !this.sid) return;
+      const sym = keysym(ev);
+      if (!sym) return;
+      if (this.listening && SCROLL_KEYS[sym]) ev.preventDefault();
+      this.keyEvent(true, sym, ev.key.length === 1 ? ev.key : "");   // auto-repeat arrives as more presses, as in Tk
+    });
+    document.addEventListener("keyup", ev => {
+      if (typing(ev) || !this.sid) return;
+      const sym = keysym(ev);
+      if (sym && this.pressed.has(sym)) this.keyEvent(false, sym, ev.key.length === 1 ? ev.key : "");
+    });
+    global.addEventListener("blur", () => { for (const k of Array.from(this.pressed)) this.keyEvent(false, k, ""); });
+  };
+
+  TurtleWeb.prototype.buildPad = function () {
+    const pad = el("div", {className: "tw-pad", hidden: true});
+    const mk = (label, sym, cls) => {
+      const b = el("button", {type: "button", textContent: label, className: cls || "", title: sym});
+      b.dataset.key = sym;
+      let timer = 0;
+      const stop = () => { if (timer) { clearInterval(timer); timer = 0; this.keyEvent(false, sym, ""); } };
+      b.addEventListener("pointerdown", ev => {
+        ev.preventDefault();
+        this.keyEvent(true, sym, sym === "space" ? " " : "");
+        timer = setInterval(() => this.keyEvent(true, sym, sym === "space" ? " " : ""), 120);  // like key auto-repeat
+      });
+      for (const n of ["pointerup", "pointercancel", "pointerleave"]) b.addEventListener(n, stop);
+      b.addEventListener("contextmenu", ev => ev.preventDefault());
+      return b;
+    };
+    const place = (btn, col, row) => { btn.style.gridColumn = col; btn.style.gridRow = row; pad.append(btn); };
+    place(mk("▲", "Up"), 2, 1);
+    place(mk("◀", "Left"), 1, 2);
+    place(mk("▼", "Down"), 2, 2);
+    place(mk("▶", "Right"), 3, 2);
+    place(mk("espaço", "space", "tw-space"), "1 / span 3", 3);
+    return pad;
+  };
+
+  TurtleWeb.prototype.updatePad = function () {
+    const coarse = global.matchMedia && global.matchMedia("(pointer: coarse)").matches;
+    const want = this.opts.pad === undefined ? coarse : !!this.opts.pad;
+    this.pad.hidden = !(this.listening && want && !TERMINAL[this.state]);
   };
 
   TurtleWeb.prototype.showAsk = function (m) {

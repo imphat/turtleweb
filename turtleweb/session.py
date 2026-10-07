@@ -64,12 +64,18 @@ class Session:
 
     # -- starting the program ---------------------------------------------------
 
-    def start(self, program, cwd=None, python=None, log=None, env=None, args=()):
-        """Convenience for the demo and tests: spawn `python -u program` with the channel set up."""
+    def start(self, program, cwd=None, python=None, log=None, env=None, args=(), stdin_text=None):
+        """Convenience for the demo and tests: spawn `python -u program` with the channel set up.
+
+        `stdin_text`, if given, is fed to the program's stdin (the app normally owns it)."""
         proc = subprocess.Popen(
             [python or sys.executable, "-u", str(program), *args],
             cwd=cwd, env=child_env(self, env, log),
-            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdin=subprocess.DEVNULL if stdin_text is None else subprocess.PIPE,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if stdin_text is not None:
+            proc.stdin.write(stdin_text.encode("utf-8"))
+            proc.stdin.close()
         self.attach(proc)
         for name in ("stdout", "stderr"):
             threading.Thread(target=self._pipe, args=(getattr(proc, name), name), daemon=True).start()
@@ -215,6 +221,8 @@ class Session:
 
     def send(self, msg):
         """Forward a message from the page to the program. Returns False if it was dropped."""
+        if isinstance(msg, list):  # the page batches messages to keep their order
+            return all([self.send(m) for m in msg]) if msg else False
         if not isinstance(msg, dict) or msg.get("t") not in PAGE_MESSAGES or self._conn is None:
             return False
         data = (json.dumps(msg, separators=(",", ":")) + "\n").encode("utf-8")

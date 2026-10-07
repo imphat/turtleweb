@@ -2,6 +2,7 @@ import os
 import shutil
 import sys
 import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -93,6 +94,28 @@ class Run:
             const d = c.getContext('2d').getImageData(Math.round((c.width/s/2 + x) * s),
                 Math.round((c.height/s/2 - y) * s), 1, 1).data; return [d[0], d[1], d[2]]; }""", [x, y])
 
+    def at(self, x, y):
+        """Page coordinates of the turtle point (x, y)."""
+        box = self.page.locator(".tw canvas").bounding_box()
+        scale = box["width"] / self.page.evaluate("tw.w")
+        return box["x"] + box["width"] / 2 + x * scale, box["y"] + box["height"] / 2 - y * scale
+
+    def click_at(self, x, y, **kw):
+        self.page.mouse.click(*self.at(x, y), **kw)
+
+    def drag(self, points):
+        self.page.mouse.move(*self.at(*points[0]))
+        self.page.mouse.down()
+        for pt in points[1:]:
+            self.page.mouse.move(*self.at(*pt), steps=3)
+        self.page.mouse.up()
+
+    def out(self):
+        return self.page.inner_text("#out")
+
+    def wait_out(self, text, timeout=10000):
+        self.page.wait_for_function("t => document.getElementById('out').textContent.includes(t)", arg=text, timeout=timeout)
+
     def has_ink(self):
         """True if any pixel differs from the top-left one (the background)."""
         return self.page.evaluate("""() => { const c = document.querySelector('.tw canvas');
@@ -100,6 +123,24 @@ class Run:
             for (let i = 4; i < d.length; i += 4)
               if (d[i] !== d[0] || d[i+1] !== d[1] || d[i+2] !== d[2]) return true;
             return false; }""")
+
+    def wait_ink(self, x, y, timeout=5.0):
+        """Wait until the pixel is not white (thin 1 px lines are anti-aliased gray)."""
+        end = time.time() + timeout
+        while time.time() < end:
+            if sum(self.pixel(x, y)) < 600:
+                return
+            time.sleep(0.05)
+        raise AssertionError("pixel (%s,%s) continua branco" % (x, y))
+
+    def wait_pixel(self, x, y, color, tol=40, timeout=5.0):
+        """Wait (the drawing and the program's output travel on different channels)."""
+        end = time.time() + timeout
+        while time.time() < end:
+            if near(self.pixel(x, y), color, tol):
+                return
+            time.sleep(0.05)
+        raise AssertionError("pixel (%s,%s) é %s, esperava %s" % (x, y, self.pixel(x, y), color))
 
     def close(self):
         self.context.close()

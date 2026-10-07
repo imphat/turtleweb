@@ -128,15 +128,27 @@ def _run_due_timers():
 
 
 def _drain():
-    """Handle every message already received."""
-    n = 0
+    """Handle every message already received (drags are coalesced: only the newest position counts)."""
+    msgs = []
     while True:
         try:
-            msg = _channel.inbox.get_nowait()
+            msgs.append(_channel.inbox.get_nowait())
         except Exception:
-            return n
+            break
+    last_move = None
+    keep = []
+    for msg in reversed(msgs):
+        kind = msg.get("t")
+        if kind == "mousemove":
+            if last_move is not None:
+                continue  # a newer position follows
+            last_move = msg
+        elif kind in ("mousedown", "mouseup"):
+            last_move = None
+        keep.append(msg)
+    for msg in reversed(keep):
         _handle(msg)
-        n += 1
+    return len(msgs)
 
 
 def _handle(msg):
@@ -508,7 +520,9 @@ class Canvas(Misc):
         return y - self.tk._height / 2.0
 
     def focus_force(self):
-        self._focused = True
+        if not self._focused:
+            self._focused = True
+            _emit("listen")  # the page shows the arrow buttons and focuses the canvas
 
     def xview(self, *a):
         pass
