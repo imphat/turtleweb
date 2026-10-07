@@ -1,0 +1,1 @@
+[["color", "red"], ["write", "P"], ["forward", 20.0], ["color", "blue"], ["write", "Y"], ["forward", 20.0], ["color", "red"], ["write", "T"], ["forward", 20.0], ["color", "blue"], ["write", "H"], ["forward", 20.0], ["color", "red"], ["write", "O"], ["forward", 20.0], ["color", "blue"], ["write", "N"], ["forward", 20.0]]

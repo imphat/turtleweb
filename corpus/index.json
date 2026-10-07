@@ -1,0 +1,338 @@
+[
+  {
+    "programa": "ideia-arco_iris.py",
+    "tipo": "interativo_ou_aleatorio",
+    "origem": "programa natural da ideia arco_iris",
+    "comandos_esperados": null
+  },
+  {
+    "programa": "ideia-bolinha.py",
+    "tipo": "interativo_ou_aleatorio",
+    "origem": "programa natural da ideia bolinha",
+    "comandos_esperados": null
+  },
+  {
+    "programa": "ideia-casa.py",
+    "tipo": "deterministico",
+    "origem": "programa natural da ideia casa",
+    "comandos_esperados": 1
+  },
+  {
+    "programa": "ideia-cenario.py",
+    "tipo": "deterministico",
+    "origem": "programa natural da ideia cenario",
+    "comandos_esperados": 8
+  },
+  {
+    "programa": "ideia-chuva_confete.py",
+    "tipo": "interativo_ou_aleatorio",
+    "origem": "programa natural da ideia chuva_confete",
+    "comandos_esperados": null
+  },
+  {
+    "programa": "ideia-constelacao.py",
+    "tipo": "deterministico",
+    "origem": "programa natural da ideia constelacao",
+    "comandos_esperados": 3
+  },
+  {
+    "programa": "ideia-controle_remoto.py",
+    "tipo": "interativo_ou_aleatorio",
+    "origem": "programa natural da ideia controle_remoto",
+    "comandos_esperados": null
+  },
+  {
+    "programa": "ideia-corrida_tartarugas.py",
+    "tipo": "interativo_ou_aleatorio",
+    "origem": "programa natural da ideia corrida_tartarugas",
+    "comandos_esperados": null
+  },
+  {
+    "programa": "ideia-desenha_comandos.py",
+    "tipo": "interativo_ou_aleatorio",
+    "origem": "programa natural da ideia desenha_comandos",
+    "comandos_esperados": null
+  },
+  {
+    "programa": "ideia-desenha_teclado.py",
+    "tipo": "interativo_ou_aleatorio",
+    "origem": "programa natural da ideia desenha_teclado",
+    "comandos_esperados": null
+  },
+  {
+    "programa": "ideia-desenho_arquivo.py",
+    "tipo": "interativo_ou_aleatorio",
+    "origem": "programa natural da ideia desenho_arquivo",
+    "comandos_esperados": null
+  },
+  {
+    "programa": "ideia-escada.py",
+    "tipo": "deterministico",
+    "origem": "programa natural da ideia escada",
+    "comandos_esperados": 5
+  },
+  {
+    "programa": "ideia-espiral.py",
+    "tipo": "deterministico",
+    "origem": "programa natural da ideia espiral",
+    "comandos_esperados": 100
+  },
+  {
+    "programa": "ideia-estrela_magica.py",
+    "tipo": "deterministico",
+    "origem": "programa natural da ideia estrela_magica",
+    "comandos_esperados": 10
+  },
+  {
+    "programa": "ideia-exame_cobra.py",
+    "tipo": "interativo_ou_aleatorio",
+    "origem": "programa natural da ideia exame_cobra",
+    "comandos_esperados": null
+  },
+  {
+    "programa": "ideia-exame_desenhista.py",
+    "tipo": "interativo_ou_aleatorio",
+    "origem": "programa natural da ideia exame_desenhista",
+    "comandos_esperados": null
+  },
+  {
+    "programa": "ideia-exame_pong.py",
+    "tipo": "interativo_ou_aleatorio",
+    "origem": "programa natural da ideia exame_pong",
+    "comandos_esperados": null
+  },
+  {
+    "programa": "ideia-exame_simon.py",
+    "tipo": "interativo_ou_aleatorio",
+    "origem": "programa natural da ideia exame_simon",
+    "comandos_esperados": null
+  },
+  {
+    "programa": "ideia-flor_petalas.py",
+    "tipo": "deterministico",
+    "origem": "programa natural da ideia flor_petalas",
+    "comandos_esperados": 24
+  },
+  {
+    "programa": "ideia-fractal.py",
+    "tipo": "deterministico",
+    "origem": "programa natural da ideia fractal",
+    "comandos_esperados": 5
+  },
+  {
+    "programa": "ideia-galeria_salva.py",
+    "tipo": "deterministico",
+    "origem": "programa natural da ideia galeria_salva",
+    "comandos_esperados": 24
+  },
+  {
+    "programa": "ideia-jardim_flores.py",
+    "tipo": "deterministico",
+    "origem": "programa natural da ideia jardim_flores",
+    "comandos_esperados": 30
+  },
+  {
+    "programa": "ideia-jogo_vida_basico.py",
+    "tipo": "deterministico",
+    "origem": "programa natural da ideia jogo_vida_basico",
+    "comandos_esperados": 2
+  },
+  {
+    "programa": "ideia-letra_inicial.py",
+    "tipo": "deterministico",
+    "origem": "programa natural da ideia letra_inicial",
+    "comandos_esperados": 4
+  },
+  {
+    "programa": "ideia-letreiro_cores.py",
+    "tipo": "deterministico",
+    "origem": "programa natural da ideia letreiro_cores",
+    "comandos_esperados": 18
+  },
+  {
+    "programa": "ideia-ligue_pontos.py",
+    "tipo": "deterministico",
+    "origem": "programa natural da ideia ligue_pontos",
+    "comandos_esperados": 3
+  },
+  {
+    "programa": "ideia-mandala.py",
+    "tipo": "deterministico",
+    "origem": "programa natural da ideia mandala",
+    "comandos_esperados": 72
+  },
+  {
+    "programa": "ideia-mapa_quadradinhos.py",
+    "tipo": "deterministico",
+    "origem": "programa natural da ideia mapa_quadradinhos",
+    "comandos_esperados": 8
+  },
+  {
+    "programa": "ideia-nome_estrelas.py",
+    "tipo": "interativo_ou_aleatorio",
+    "origem": "programa natural da ideia nome_estrelas",
+    "comandos_esperados": null
+  },
+  {
+    "programa": "ideia-onda_mar.py",
+    "tipo": "deterministico",
+    "origem": "programa natural da ideia onda_mar",
+    "comandos_esperados": 161
+  },
+  {
+    "programa": "ideia-paleta_cores.py",
+    "tipo": "interativo_ou_aleatorio",
+    "origem": "programa natural da ideia paleta_cores",
+    "comandos_esperados": null
+  },
+  {
+    "programa": "ideia-pincel_mouse.py",
+    "tipo": "interativo_ou_aleatorio",
+    "origem": "programa natural da ideia pincel_mouse",
+    "comandos_esperados": null
+  },
+  {
+    "programa": "ideia-pintar_cliques.py",
+    "tipo": "interativo_ou_aleatorio",
+    "origem": "programa natural da ideia pintar_cliques",
+    "comandos_esperados": null
+  },
+  {
+    "programa": "ideia-pixel_art.py",
+    "tipo": "deterministico",
+    "origem": "programa natural da ideia pixel_art",
+    "comandos_esperados": 8
+  },
+  {
+    "programa": "ideia-poligono_medida.py",
+    "tipo": "interativo_ou_aleatorio",
+    "origem": "programa natural da ideia poligono_medida",
+    "comandos_esperados": null
+  },
+  {
+    "programa": "ideia-poligono_vertices.py",
+    "tipo": "deterministico",
+    "origem": "programa natural da ideia poligono_vertices",
+    "comandos_esperados": 6
+  },
+  {
+    "programa": "ideia-quadrado.py",
+    "tipo": "deterministico",
+    "origem": "programa natural da ideia quadrado",
+    "comandos_esperados": 1
+  },
+  {
+    "programa": "ideia-relogio_animado.py",
+    "tipo": "interativo_ou_aleatorio",
+    "origem": "programa natural da ideia relogio_animado",
+    "comandos_esperados": null
+  },
+  {
+    "programa": "ideia-seta.py",
+    "tipo": "deterministico",
+    "origem": "programa natural da ideia seta",
+    "comandos_esperados": 6
+  },
+  {
+    "programa": "ideia-trilha_pontos.py",
+    "tipo": "interativo_ou_aleatorio",
+    "origem": "programa natural da ideia trilha_pontos",
+    "comandos_esperados": null
+  },
+  {
+    "programa": "licao-tartaruga.py",
+    "tipo": "deterministico",
+    "origem": "exemplo da lição tartaruga",
+    "comandos_esperados": 3
+  },
+  {
+    "programa": "licao-tartaruga-da-crianca.py",
+    "tipo": "deterministico",
+    "origem": "programa de uma criança depois da lição tartaruga",
+    "comandos_esperados": 5
+  },
+  {
+    "programa": "licao-tartaruga_caneta.py",
+    "tipo": "deterministico",
+    "origem": "exemplo da lição tartaruga_caneta",
+    "comandos_esperados": 4
+  },
+  {
+    "programa": "licao-tartaruga_caneta-da-crianca.py",
+    "tipo": "deterministico",
+    "origem": "programa de uma criança depois da lição tartaruga_caneta",
+    "comandos_esperados": 5
+  },
+  {
+    "programa": "licao-tartaruga_cores.py",
+    "tipo": "deterministico",
+    "origem": "exemplo da lição tartaruga_cores",
+    "comandos_esperados": 4
+  },
+  {
+    "programa": "licao-tartaruga_cores-da-crianca.py",
+    "tipo": "deterministico",
+    "origem": "programa de uma criança depois da lição tartaruga_cores",
+    "comandos_esperados": 6
+  },
+  {
+    "programa": "referencia-bolinhas.py",
+    "tipo": "deterministico",
+    "origem": "programa de referência escrito para ser visto",
+    "comandos_esperados": 18
+  },
+  {
+    "programa": "referencia-carimbos.py",
+    "tipo": "deterministico",
+    "origem": "programa de referência escrito para ser visto",
+    "comandos_esperados": 25
+  },
+  {
+    "programa": "referencia-casa-colorida.py",
+    "tipo": "deterministico",
+    "origem": "programa de referência escrito para ser visto",
+    "comandos_esperados": 18
+  },
+  {
+    "programa": "referencia-controle-setas.py",
+    "tipo": "interativo_ou_aleatorio",
+    "origem": "programa de referência escrito para ser visto",
+    "comandos_esperados": null
+  },
+  {
+    "programa": "referencia-escada.py",
+    "tipo": "deterministico",
+    "origem": "programa de referência escrito para ser visto",
+    "comandos_esperados": 24
+  },
+  {
+    "programa": "referencia-espiral.py",
+    "tipo": "deterministico",
+    "origem": "programa de referência escrito para ser visto",
+    "comandos_esperados": 121
+  },
+  {
+    "programa": "referencia-estrela.py",
+    "tipo": "deterministico",
+    "origem": "programa de referência escrito para ser visto",
+    "comandos_esperados": 14
+  },
+  {
+    "programa": "referencia-flor.py",
+    "tipo": "deterministico",
+    "origem": "programa de referência escrito para ser visto",
+    "comandos_esperados": 25
+  },
+  {
+    "programa": "referencia-pegue-a-bolinha.py",
+    "tipo": "interativo_ou_aleatorio",
+    "origem": "programa de referência escrito para ser visto",
+    "comandos_esperados": null
+  },
+  {
+    "programa": "referencia-quadrado.py",
+    "tipo": "deterministico",
+    "origem": "programa de referência escrito para ser visto",
+    "comandos_esperados": 8
+  }
+]

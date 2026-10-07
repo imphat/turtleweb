@@ -1,0 +1,1 @@
+[["penup"], ["goto", -80.0, 0.0], ["pendown"], ["color", "red"], ["dot", 40.0], ["penup"], ["goto", 0.0, 0.0], ["pendown"], ["color", "green"], ["dot", 40.0], ["penup"], ["goto", 80.0, 0.0], ["pendown"], ["color", "blue"], ["dot", 40.0], ["penup"], ["goto", -60.0, -60.0], ["write", "Oi!"]]

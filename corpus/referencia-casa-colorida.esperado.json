@@ -1,0 +1,1 @@
+[["color", "blue"], ["begin_fill"], ["forward", 100.0], ["left", 90.0], ["forward", 100.0], ["left", 90.0], ["forward", 100.0], ["left", 90.0], ["forward", 100.0], ["left", 90.0], ["end_fill"], ["color", "red"], ["begin_fill"], ["left", 45.0], ["forward", 70.0], ["right", 90.0], ["forward", 70.0], ["end_fill"]]
