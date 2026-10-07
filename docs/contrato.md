@@ -25,13 +25,13 @@ Três pontas: o **programa** (processo filho, Python de verdade), o **servidor**
 | `close` | | "fechar a janela": `done()` termina (ou o turtle recebe `WM_DELETE_WINDOW`) |
 | `answer` | `id`, `v` (texto ou `null` para cancelar) | resposta do `ask` com o mesmo `id` |
 | `mousedown` / `mouseup` / `mousemove` | `x`, `y` (pixels da janela, origem no canto superior esquerdo), `b` (botão 1-3) | `onscreenclick`, `onclick`, `ondrag`, `onrelease` |
-| `keydown` / `keyup` | `k` (nome de tecla do Tk: `Up`, `space`, `a`...), `c` (caractere) | `onkey`, `onkeypress`, `onkeyrelease` (só depois de `listen()`, como no Tk) |
+| `keydown` / `keyup` | `k` (nome de tecla do Tk: `Up`, `space`, `a`...), `c` (caractere) | `onkey`, `onkeypress`, `onkeyrelease` (só depois de `listen()`, como no Tk). Atenção: `onkey` responde ao **soltar** a tecla; repetição = soltar+apertar |
 | `speed` | `v` (1 a 1000) | divide o atraso da animação por `v`; não muda o desenho |
 
 ## 2. Servidor → página: SSE; página → servidor: POST
 
 - `GET  {base}/events/<sid>`: `text/event-stream`. Cada evento tem `id:` (posição na lista) e `data:` com um objeto. Aceita
-  `Last-Event-ID` para continuar de onde parou. O servidor encerra o fluxo depois do estado final.
+  `Last-Event-ID` (reconexão automática do navegador) ou `?last=<id>` (o `turtleweb.js` reabre o fluxo sozinho ao voltar de uma tela bloqueada) para continuar depois desse id. O servidor encerra o fluxo depois do estado final.
 - `POST {base}/input/<sid>`: corpo JSON com uma mensagem da tabela "Servidor → filho". Responde `{"ok": true|false}`.
 - `POST {base}/stop/<sid>` (■ Parar) e `GET {base}/status/<sid>`.
 
@@ -43,6 +43,8 @@ Objetos que a página recebe: `ops` e `ask` (iguais aos do filho), mais:
 | `out` | `s` (`stdout`/`stderr`), `text`: só quando o servidor de demonstração captura a saída do filho |
 
 `ended`, `error` e `stopped` são finais: o desenho continua na página até a próxima execução (outro `sid`).
+
+Entradas que chegam enquanto um tratador (clique, tecla, arrasto, timer) ainda está rodando esperam ele terminar: tratadores não se aninham; de vários `mousemove` seguidos só o último vale. `mousedown`/`mouseup`/teclas nunca são descartados.
 
 ## 3. Operações de desenho (`ops`)
 
@@ -65,6 +67,7 @@ Cada operação é uma lista; o primeiro item é o nome. Itens do canvas têm um
 a cor que o Tk usa), `width`, `capstyle`, `joinstyle`, `anchor`, `text`, `font` (`[família, tamanho, estilo]`; tamanho
 negativo = pixels, positivo = pontos).
 Dentro de um lote, só o último `coords` de cada item é enviado.
+Uma linha de comprimento zero com `capstyle` `round` é um ponto (é o que `dot()` gera): a página a desenha como círculo.
 
 ## 4. Lista de comandos (`PP_TURTLE_LOG`)
 

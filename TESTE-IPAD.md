@@ -20,8 +20,8 @@ Quem testa é o João. Tempo: ~20 minutos.
 | 2 | `referencia-bolinhas` | Executar | três bolinhas: vermelha, **verde** e azul, com texto "Oi!". Anote o tom do verde (decisão da cor `green`, `DECISOES.md`) |
 | 3 | `referencia-estrela`, `referencia-flor` | Executar | desenhos preenchidos, linhas nítidas (tela retina), sem serrilhado forte |
 | 4 | `referencia-espiral` | Executar e cronometrar | termina em ~13 s. Repita tocando **Mais rápido** logo no começo: bem mais rápido, **mesmo desenho** |
-| 5 | `referencia-controle-setas` | Executar | aparecem os **botões de seta** (▲ ◀ ▼ ▶ e "espaço") sob o desenho. Toque ▲: a tartaruga sobe 20; segure: repete |
-| 6 | `ideia-controle_remoto`, `ideia-desenha_teclado` | Executar e usar o teclado do iPad (se tiver teclado externo, as setas) | a tartaruga anda; a página **não rola** quando usa as setas ou espaço |
+| 5 | `referencia-controle-setas` | Executar | aparecem os **botões de seta** (▲ ◀ ▼ ▶ e "espaço") sob o desenho. Este programa só usa **▲ e ▼** (◀ ▶ não fazem nada, é o esperado). Toque ▲: sobe 20; segure: repete |
+| 6 | `ideia-controle_remoto`, `ideia-desenha_teclado` | Esses programas só usam **▲**. Toque **⌨️ Teclado** (aparece só em tela de toque, depois de `listen()`) para abrir o teclado do iPad; toque de novo para fechar | a tartaruga anda; a página **não rola** quando usa as setas ou espaço |
 | 7 | `ideia-pintar_cliques` | Tocar em vários pontos | um ponto colorido onde tocou (confira a posição) |
 | 8 | `ideia-pincel_mouse` | Pôr o dedo **em cima da tartaruga** e arrastar | desenha uma linha seguindo o dedo (só funciona se começar na tartaruga, como no Tk) |
 | 9 | `referencia-pegue-a-bolinha` | Tocar na bolinha preta | o contador aparece no texto de saída abaixo do desenho |
