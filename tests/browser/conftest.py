@@ -33,12 +33,26 @@ def programs_dir(tmp_path_factory):
     return d
 
 
-@pytest.fixture(scope="session")
-def server(programs_dir):
+def _serve(programs_dir, env):
     from app import create_app
-    app = create_app(str(programs_dir), python=CHILD_PYTHON)
+    app = create_app(str(programs_dir), python=CHILD_PYTHON, env=env)
     srv = make_server("127.0.0.1", 0, app, threaded=True)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return srv
+
+
+@pytest.fixture(scope="session")
+def server(programs_dir):
+    """Demo server whose programs skip the animation delays (fast tests)."""
+    srv = _serve(programs_dir, dict(os.environ, TURTLEWEB_NO_DELAY="1"))
+    yield "http://127.0.0.1:%d" % srv.server_port
+    srv.shutdown()
+
+
+@pytest.fixture(scope="session")
+def server_real_speed(programs_dir):
+    """Demo server with the real Tk timing."""
+    srv = _serve(programs_dir, None)
     yield "http://127.0.0.1:%d" % srv.server_port
     srv.shutdown()
 
@@ -79,6 +93,14 @@ class Run:
             const d = c.getContext('2d').getImageData(Math.round((c.width/s/2 + x) * s),
                 Math.round((c.height/s/2 - y) * s), 1, 1).data; return [d[0], d[1], d[2]]; }""", [x, y])
 
+    def has_ink(self):
+        """True if any pixel differs from the top-left one (the background)."""
+        return self.page.evaluate("""() => { const c = document.querySelector('.tw canvas');
+            const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+            for (let i = 4; i < d.length; i += 4)
+              if (d[i] !== d[0] || d[i+1] !== d[1] || d[i+2] !== d[2]) return true;
+            return false; }""")
+
     def close(self):
         self.context.close()
 
@@ -87,8 +109,8 @@ class Run:
 def run(browser, server):
     runs = []
 
-    def start(prog, **ctx):
-        r = Run(browser, server, prog, **ctx)
+    def start(prog, base=None, **ctx):
+        r = Run(browser, base or server, prog, **ctx)
         runs.append(r)
         return r
 

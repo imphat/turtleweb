@@ -59,3 +59,30 @@ def test_filho_roda_sem_tkinter(no_tk_python):
     import subprocess
     out = subprocess.run([no_tk_python, "-c", "import tkinter"], capture_output=True)
     assert out.returncode != 0      # confirma que este Python realmente não tem Tk
+
+
+def _run_to_end(program, tmp_path, python=None):
+    from turtleweb.session import Session
+    import os
+    s = Session()
+    s.start(program, cwd=tmp_path, python=python or CHILD_PYTHON, env=dict(os.environ, TURTLEWEB_NO_DELAY="1"))
+    end = time.monotonic() + 60
+    while s.state not in ("waiting", "ended", "error", "stopped"):
+        assert time.monotonic() < end
+        time.sleep(0.02)
+    if s.state == "waiting":
+        s.send({"t": "close"})
+    s.wait_done()
+    return s
+
+
+from helpers import ROOT, deterministic  # noqa: E402
+
+_PROGS = [str(CORPUS / p) for p in deterministic()] + sorted(str(p) for p in (ROOT / "tests/programs").glob("geo_*.py"))
+
+
+@pytest.mark.parametrize("programa", _PROGS)
+def test_nenhum_metodo_do_tk_ficou_sem_implementar(programa, tmp_path):
+    s = _run_to_end(programa, tmp_path)
+    assert s.state == "ended", s.stderr
+    assert s.child_end is not None and s.child_end["unknown"] == []

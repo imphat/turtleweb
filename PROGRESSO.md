@@ -5,7 +5,8 @@ Ramo: `turtleweb-m1-m6`. Um commit por marco ("M1: ..."). Regras de parada: ver 
 | Marco | Estado |
 |---|---|
 | M1 | pronto (ver RELATORIO-M1.md) |
-| M2 a M6 | não começados |
+| M2 | pronto (RELATORIO-M2.md) |
+| M3 a M6 | não começados |
 
 ## Comandos
 ```

@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.dirname(HERE))
 from turtleweb.flask_blueprint import create_blueprint  # noqa: E402
 
 
-def create_app(programs_dir=None, python=None):
+def create_app(programs_dir=None, python=None, env=None):
     programs_dir = os.path.abspath(programs_dir or os.path.join(HERE, "..", "corpus"))
     app = Flask(__name__)
     bp = create_blueprint()
@@ -41,7 +41,7 @@ def create_app(programs_dir=None, python=None):
         session = hub.new()
         current["sid"] = session.sid
         workdir = tempfile.mkdtemp(prefix="turtleweb-")  # programs may write files
-        session.start(os.path.join(programs_dir, name + ".py"), cwd=workdir, python=python,
+        session.start(os.path.join(programs_dir, name + ".py"), cwd=workdir, python=python, env=env,
                       log=os.path.join(workdir, "comandos.jsonl"))
         return jsonify(sid=session.sid)
 

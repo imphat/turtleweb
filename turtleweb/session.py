@@ -54,6 +54,7 @@ class Session:
         self._stopped = False
         self._finalized = False
         self._child_end = None
+        self.child_end = None  # the child's own `end` message (stats, unknown fake-Tk methods)
         self._reader = None
         self._listener = socket.socket()
         self._listener.bind(("127.0.0.1", 0))
@@ -143,7 +144,7 @@ class Session:
                 continue
             kind = msg.get("t")
             if kind == "end":
-                self._child_end = msg
+                self._child_end = self.child_end = msg
             elif kind == "state":
                 self._set_state(msg.get("s"))
             elif kind in ("ops", "ask"):
