@@ -232,3 +232,5 @@ A lista de comandos da seção 5 é independente do desenho: um invólucro nos m
    turtle da biblioteca padrão. Recomendo (b), porque não engana um programa que importe `tkinter` direto.
 5. **O que fazer com `experimentos/m0_canvas_falso/`:** manter como referência até o M1 e apagar depois (minha sugestão), ou
    apagar já.
+
+> Nota (M6): a pasta `experimentos/m0_canvas_falso/` citada acima foi removida no pacote final (decisão 6 do `DECISOES.md`); continua no histórico do git (commit `dd770d3`).
