@@ -38,6 +38,13 @@ def install():
     _channel.connect()
 
     def excepthook(kind, value, tb, _orig=sys.excepthook):
+        if kind.__name__ == "Terminator" and _fake_tk._closed[0]:
+            # The child closed the window while the program was still drawing: end quietly
+            # (real turtle would print a traceback, which would only scare a child).
+            _fake_tk.finish(0)
+            sys.stdout.flush()
+            sys.stderr.flush()
+            os._exit(0)
         _exit_code[0] = 1
         _orig(kind, value, tb)
 
