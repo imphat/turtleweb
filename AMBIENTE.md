@@ -16,3 +16,16 @@ Data: 2026-10-07. Container Linux (Ubuntu noble), sessão na nuvem.
 ## Observações
 - O `python3` padrão (3.13) não tem Tk; para testes com Tk de verdade é preciso usar `python3.12`. A biblioteca pode ser testada em 3.13 sem Tk se o módulo substituto não depender dele.
 - O Playwright Python do pip espera a revisão 1243 do navegador (indisponível); com `executable_path` apontando para o Chromium existente funciona.
+
+## Segunda verificação (2026-10-07): diferenças em relação ao esperado
+
+O `CLAUDE.md` do repositório **não tem seção "Ambiente"** (só: Como trabalhar aqui, Estrutura sugerida, Relatório de marco).
+O pedido citava duas coisas que não existem neste container:
+
+| Esperado | Encontrado |
+|----------|------------|
+| `~/.venvs/turtleweb/bin/python` | **Não existe** (`/root/.venvs` ausente). Não foi possível testar `import tkinter` nem `turtle` nele. |
+| `~/.chromium-path` | **Não existe** (`/root/.chromium-path` ausente). O Chromium disponível está em `/opt/pw-browsers/chromium` (e `chromium-1194`, `chromium_headless_shell-1194`). |
+
+Continua valendo da primeira verificação: `python3` = 3.13 sem Tk; `/usr/bin/python3.12` tem Tk e, sob `xvfb-run -a`, `Turtle().forward(10)` → `(10.00,0.00)` (reconfirmado agora); Playwright Python com `executable_path='/opt/pw-browsers/chromium'` desenha e lê pixel.
+Como `setup/setup-ambiente.sh` não cria o venv nem o `~/.chromium-path`, o setup script do ambiente provavelmente ainda não foi aplicado a este container.
