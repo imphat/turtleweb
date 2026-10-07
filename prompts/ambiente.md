@@ -1,4 +1,4 @@
-Só verifique o ambiente. Releia `CLAUDE.md` (seção Ambiente) e confira que continua valendo. Não escreva código do projeto.
+Só verifique o ambiente. Antes de tudo, mostre o conteúdo de `/tmp/setup-turtleweb.log` (o log do script de configuração) e diga se o script rodou. Releia `CLAUDE.md` (seção Ambiente) e confira que continua valendo. Não escreva código do projeto.
 
 1. `~/.venvs/turtleweb/bin/python --version` e `import tkinter` nele; sob `xvfb-run -a`, crie uma `turtle.Turtle()` e ande 10 passos.
 2. Abra o Chromium de `~/.chromium-path` com o Playwright Python (`executable_path`), carregue uma página com um canvas, desenhe um retângulo vermelho e leia um pixel.
