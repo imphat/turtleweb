@@ -131,6 +131,7 @@ Os arquivos `corpus/*.esperado.json` mostram o resultado esperado de cada progra
 ## 7. Aceite: como medir
 
 `corpus/` tem os programas (`index.json` diz o tipo de cada um).
+**Ambiente da nuvem (verificado):** use o Python 3.12 do `CLAUDE.md` (o 3.13 padrão não tem Tkinter), `xvfb-run` para o Tk e o Chromium que já existe em `/opt/pw-browsers` com `executable_path` (não há download de navegador).
 1. **Determinísticos** (`*.esperado.json`): a lista de comandos gravada **é idêntica** à esperada. Sem navegador.
 2. **Geometria** (opcional, com `xvfb` e `python3-tk`): comparar com o turtle de verdade (segmentos desenhados, cores, polígonos
    preenchidos) dentro de uma tolerância pequena e documentada. Se o ambiente não suportar, registre no relatório e siga.

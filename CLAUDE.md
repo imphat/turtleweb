@@ -3,6 +3,17 @@
 Projeto: uma biblioteca que faz o `import turtle` de um programa Python desenhar **dentro do navegador**, com o Python rodando no
 servidor. Leia `SPEC.md` inteiro antes de qualquer ação. Ele manda; este arquivo só diz como trabalhar.
 
+## Ambiente (verificado em 2026-10-06; o resumo está em `AMBIENTE.md` se o João o mesclou)
+- **Python:** o `python3` padrão é o 3.13 e **não tem Tkinter**. Use **`~/.venvs/turtleweb/bin/python`** (Python 3.12, com Tkinter,
+  pytest, flask e playwright instalados pelo script de configuração). Se esse ambiente não existir, crie com
+  `python3.12 -m venv ~/.venvs/turtleweb && ~/.venvs/turtleweb/bin/pip install pytest flask playwright`.
+- **Tela virtual:** rode o que abre janela do Tk com `xvfb-run -a <comando>`.
+- **Chromium sem janela:** já existe em `/opt/pw-browsers`; o caminho está em `~/.chromium-path` (ou `find /opt/pw-browsers -name chrome`).
+  O Playwright Python **não consegue baixar navegador** (o `cdn.playwright.dev` dá 403): use
+  `p.chromium.launch(executable_path=<caminho>)`. Não rode `playwright install`.
+- **Rede:** `pip` e `apt` funcionam; servidor em `127.0.0.1` funciona; o resto da internet pode estar bloqueado.
+- A biblioteca precisa funcionar no Python **3.10 ou mais novo** (o Raspberry traz o 3.11), então não use sintaxe do 3.12 ou 3.13.
+
 ## Como trabalhar aqui
 - **Um marco por sessão** (o prompt diz qual). Ao terminar: escreva `RELATORIO-Mx.md`, abra o pull request e **pare**.
 - Código e identificadores em inglês; comentários curtos e só onde a razão não é óbvia; textos para pessoas (relatórios,
