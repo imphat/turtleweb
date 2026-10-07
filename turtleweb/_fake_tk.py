@@ -130,17 +130,53 @@ def _schedule(ms, func, args):
     return "after#%d" % _seq[0]
 
 
+_INPUT = ("mousedown", "mouseup", "mousemove", "keydown", "keyup")
+_cb_depth = [0]
+_deferred = []
+_running_deferred = [False]
+
+
 def _call(func, *args):
     """Run a Tk callback: errors are printed and the loop goes on, like Tk does."""
-    with _cmdlog.callback_scope():
-        try:
-            func(*args)
-        except SystemExit:
-            raise
-        except BaseException as exc:
-            if type(exc).__name__ == "Terminator" and _closed[0]:
-                return  # the window was closed under a running callback: nothing to report
-            traceback.print_exc()
+    _cb_depth[0] += 1
+    try:
+        with _cmdlog.callback_scope():
+            try:
+                func(*args)
+            except SystemExit:
+                raise
+            except BaseException as exc:
+                if type(exc).__name__ == "Terminator" and _closed[0]:
+                    return  # the window was closed under a running callback: nothing to report
+                traceback.print_exc()
+    finally:
+        _cb_depth[0] -= 1
+    if _cb_depth[0] == 0:
+        _run_deferred()
+
+
+def _defer(msg):
+    """Input that arrives while a handler is animating waits for it to return: handlers never nest.
+
+    (A drag handler that moves the turtle with animation would otherwise call itself once per
+    mouse event, deeper and deeper, until the stack is full.) Only the newest drag position is kept.
+    """
+    if msg.get("t") == "mousemove" and _deferred and _deferred[-1].get("t") == "mousemove" \
+            and _deferred[-1].get("b") == msg.get("b"):
+        _deferred[-1] = msg
+    else:
+        _deferred.append(msg)
+
+
+def _run_deferred():
+    if _running_deferred[0]:
+        return
+    _running_deferred[0] = True
+    try:
+        while _deferred:
+            _handle(_deferred.pop(0))
+    finally:
+        _running_deferred[0] = False
 
 
 def _run_due_timers():
@@ -185,6 +221,9 @@ def _drain():
 
 def _handle(msg):
     kind = msg.get("t")
+    if kind in _INPUT and _cb_depth[0] > 0:
+        _defer(msg)
+        return
     if kind in ("close", "eof"):
         _closed[0] = True
         root = _root[0]
@@ -360,6 +399,7 @@ class PhotoImage:
 _BIND_RE = [
     (re.compile(r"^<(?:ButtonPress|Button)-(\d)>$"), r"<Button-\1>"),
     (re.compile(r"^<ButtonRelease-(\d)>$"), r"<ButtonRelease-\1>"),
+    (re.compile(r"^<Button(\d)-ButtonRelease>$"), r"<ButtonRelease-\1>"),  # what turtle.onrelease binds
     (re.compile(r"^<(?:B|Button)(\d)-Motion>$"), r"<B\1-Motion>"),
     (re.compile(r"^<(?:KeyPress|Key)-(.+)>$"), r"<KeyPress-\1>"),
     (re.compile(r"^<(?:KeyPress|Key)>$"), "<KeyPress>"),

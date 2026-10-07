@@ -13,7 +13,7 @@ def create_blueprint(hub=None, name="turtleweb"):
     """Routes (relative to wherever the blueprint is registered):
 
     GET  /turtleweb.js       the page script
-    GET  /events/<sid>       server-sent events of the run (supports Last-Event-ID)
+    GET  /events/<sid>       server-sent events of the run (supports Last-Event-ID and ?last=<id>)
     POST /input/<sid>        a JSON message from the page to the program
     POST /stop/<sid>         ■ Parar
     GET  /status/<sid>       {"state": ..., "code": ...}
@@ -37,7 +37,8 @@ def create_blueprint(hub=None, name="turtleweb"):
     @bp.route("/events/<sid>")
     def events(sid):
         s = session_or_404(sid)
-        last = request.headers.get("Last-Event-ID", "")
+        # Last-Event-ID is sent by the browser's own reconnect; ?last= by turtleweb.js when it reopens the stream itself
+        last = request.headers.get("Last-Event-ID", "") or request.args.get("last", "")
         start = int(last) + 1 if last.isdigit() else 0
 
         def gen():

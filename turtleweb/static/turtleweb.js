@@ -23,6 +23,7 @@
 .tw-ask{margin:.5rem 0;padding:.6rem;border:1px solid #4a7;border-radius:.4rem;background:#f2fbf5}
 .tw-ask input{font:inherit;padding:.3rem;min-width:12rem}
 .tw-ask .tw-err{color:#b00;margin:.3rem 0 0}
+.tw-keyfield{position:fixed;left:0;bottom:0;width:1px;height:1px;opacity:0;border:0;padding:0;font-size:16px}
 .tw-pad{display:grid;grid-template-columns:repeat(3,3.6rem);grid-template-rows:repeat(2,3.2rem) 2.6rem;gap:.4rem;margin:.6rem 0;user-select:none;-webkit-user-select:none;touch-action:none}
 .tw-pad button{padding:0;font-size:1.4rem;touch-action:none}
 .tw-pad .tw-space{font-size:1rem}
@@ -69,11 +70,20 @@
     this.closeBtn.onclick = () => this.send({t: "close"});
     this.fastBtn = el("button", {className: "tw-fast", type: "button", textContent: "Mais rápido", title: "Acelera a animação sem mudar o desenho"});
     this.fastBtn.onclick = () => this.setFast(!this.fast);
-    const bar = el("div", {className: "tw-bar"}, [this.stateEl, this.closeBtn, this.fastBtn]);
+    this.kbdBtn = el("button", {className: "tw-kbd", type: "button", textContent: "⌨️ Teclado", hidden: true,
+      title: "Abre o teclado do aparelho"});
+    // The on-screen keyboard only opens for something that has focus: a tiny invisible text field.
+    this.keyField = el("input", {className: "tw-keyfield", type: "text", autocomplete: "off", spellcheck: false,
+      autocapitalize: "off", autocorrect: "off"});
+    this.keyField.setAttribute("aria-label", "teclado do programa");
+    let wasOpen = false;   // tapping the button may take the focus away before "click": remember how it was
+    this.kbdBtn.addEventListener("pointerdown", () => { wasOpen = document.activeElement === this.keyField; });
+    this.kbdBtn.onclick = () => { if (wasOpen) this.keyField.blur(); else this.keyField.focus(); wasOpen = false; };
+    const bar = el("div", {className: "tw-bar"}, [this.stateEl, this.closeBtn, this.fastBtn, this.kbdBtn]);
     this.askForm = el("form", {className: "tw-ask", hidden: true});
     this.stage = el("div", {className: "tw-stage"}, [this.canvas]);
     this.pad = this.buildPad();
-    this.root = el("div", {className: "tw"}, [bar, this.askForm, this.stage, this.pad]);
+    this.root = el("div", {className: "tw"}, [bar, this.askForm, this.stage, this.pad, this.keyField]);
     root.append(this.root);
     this.fast = false;
     this.speedFactor = 1;
@@ -125,7 +135,9 @@
   // Messages go out one request at a time and in a batch, so their order is kept.
   TurtleWeb.prototype.send = function (msg) {
     if (!this.sid) return;
-    this.outbox.push(msg);
+    const last = this.outbox[this.outbox.length - 1];
+    if (msg.t === "mousemove" && last && last.t === "mousemove" && last.b === msg.b) this.outbox[this.outbox.length - 1] = msg;
+    else this.outbox.push(msg);
     this.flushOut();
   };
 
@@ -141,6 +153,7 @@
   TurtleWeb.prototype.attach = function (sid) {
     this.detach();
     this.sid = sid;
+    this.lastId = null;
     this.outbox = [];
     this.pressed.clear();
     this.reset();
@@ -148,14 +161,26 @@
     this.askForm.hidden = true;
     this.setState("starting");
     if (this.fast) this.send({t: "speed", v: this.speedFactor});
-    const es = this.es = new EventSource(this.base + "/events/" + encodeURIComponent(sid));
-    es.onmessage = ev => this.onMessage(JSON.parse(ev.data));
+    this.open();
+  };
+
+  // (Re)open the event stream. `last` lets a new stream continue where the old one stopped.
+  TurtleWeb.prototype.open = function () {
+    if (this.es) { this.es.close(); this.es = null; }
+    const url = this.base + "/events/" + encodeURIComponent(this.sid) + (this.lastId != null ? "?last=" + this.lastId : "");
+    const es = this.es = new EventSource(url);
+    es.onmessage = ev => { if (ev.lastEventId) this.lastId = ev.lastEventId; this.onMessage(JSON.parse(ev.data)); };
     es.onopen = () => this.setState(this.state, this.code);
     es.onerror = () => {            // the browser retries by itself and resumes from Last-Event-ID
       if (TERMINAL[this.state]) return;
       this.stateEl.textContent = es.readyState === 2 ? "sem conexão com o servidor" : "reconectando…";
       if (this.opts.onstate) this.opts.onstate("offline");
     };
+  };
+
+  // iOS may close or silently kill the stream while the screen is locked: reopen it, resuming after the last event.
+  TurtleWeb.prototype.resume = function () {
+    if (this.sid && this.es && !TERMINAL[this.state]) this.open();
   };
 
   TurtleWeb.prototype.detach = function () {
@@ -205,6 +230,11 @@
       px + 'px "' + family + '", Arial, Helvetica, sans-serif';
   }
 
+  function isPoint(p) {
+    for (let i = 2; i < p.length; i += 2) if (p[i] !== p[0] || p[i + 1] !== p[1]) return false;
+    return true;
+  }
+
   TurtleWeb.prototype.draw = function () {
     const ctx = this.ctx, dpr = this.dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -213,7 +243,13 @@
     ctx.translate(this.w / 2, this.h / 2);
     for (const id of this.order) {
       const it = this.items.get(id), p = it.coords, o = it.opts;
-      if (it.kind === "line" && o.fill && p.length >= 4) {
+      if (it.kind === "line" && o.fill && p.length >= 4 && isPoint(p)) {
+        // Zero-length line = Tk's round/square dot (turtle's dot() is forward(0)); Safari draws nothing for it.
+        const r = (o.width || 1) / 2;
+        ctx.fillStyle = o.fill;
+        if (o.capstyle === "round") { ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, 2 * Math.PI); ctx.fill(); }
+        else if (o.capstyle === "projecting") ctx.fillRect(p[0] - r, p[1] - r, 2 * r, 2 * r);
+      } else if (it.kind === "line" && o.fill && p.length >= 4) {
         ctx.beginPath(); ctx.moveTo(p[0], p[1]);
         for (let i = 2; i < p.length; i += 2) ctx.lineTo(p[i], p[i + 1]);
         ctx.strokeStyle = o.fill; ctx.lineWidth = o.width || 1;
@@ -297,11 +333,20 @@
     cv.addEventListener("pointerup", up);
     cv.addEventListener("pointercancel", up);
 
-    const typing = ev => /^(INPUT|TEXTAREA|SELECT)$/.test((ev.target && ev.target.tagName) || "");
+    const typing = ev => ev.target !== this.keyField && /^(INPUT|TEXTAREA|SELECT)$/.test((ev.target && ev.target.tagName) || "");
+    // Soft keyboards sometimes send key "Unidentified" (composition): then the characters come in the input event.
+    let composing = false;
+    this.keyField.addEventListener("input", ev => {
+      const text = this.keyField.value;
+      this.keyField.value = "";
+      if (!composing || !this.sid) return;
+      composing = false;
+      for (const c of text) { const sym = KEYSYMS[c] || c; this.keyEvent(true, sym, c); this.keyEvent(false, sym, c); }
+    });
     document.addEventListener("keydown", ev => {
       if (typing(ev) || ev.ctrlKey || ev.metaKey || !this.sid) return;
       const sym = keysym(ev);
-      if (!sym) return;
+      if (!sym) { if (ev.target === this.keyField) composing = true; return; }
       if (this.listening && SCROLL_KEYS[sym]) ev.preventDefault();
       this.keyEvent(true, sym, ev.key.length === 1 ? ev.key : "");   // auto-repeat arrives as more presses, as in Tk
     });
@@ -310,6 +355,9 @@
       const sym = keysym(ev);
       if (sym && this.pressed.has(sym)) this.keyEvent(false, sym, ev.key.length === 1 ? ev.key : "");
     });
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) this.resume(); });
+    global.addEventListener("pageshow", ev => { if (ev.persisted) this.resume(); });
+    global.addEventListener("online", () => this.resume());
     global.addEventListener("blur", () => { for (const k of Array.from(this.pressed)) this.keyEvent(false, k, ""); });
   };
 
@@ -319,13 +367,16 @@
       const b = el("button", {type: "button", textContent: label, className: cls || "", title: sym});
       b.dataset.key = sym;
       let timer = 0;
-      const stop = () => { if (timer) { clearInterval(timer); timer = 0; this.keyEvent(false, sym, ""); } };
+      const ch = sym === "space" ? " " : "";
+      const stop = () => { if (timer) { clearInterval(timer); timer = 0; this.keyEvent(false, sym, ch); } };
       b.addEventListener("pointerdown", ev => {
         ev.preventDefault();
-        this.keyEvent(true, sym, sym === "space" ? " " : "");
-        timer = setInterval(() => this.keyEvent(true, sym, sym === "space" ? " " : ""), 120);  // like key auto-repeat
+        if (timer) return;
+        this.keyEvent(true, sym, ch);
+        // onkey() answers the key RELEASE, so a held button sends release+press per repeat (X11 autorepeat)
+        timer = setInterval(() => { this.keyEvent(false, sym, ch); this.keyEvent(true, sym, ch); }, 120);
       });
-      for (const n of ["pointerup", "pointercancel", "pointerleave"]) b.addEventListener(n, stop);
+      for (const n of ["pointerup", "pointercancel", "lostpointercapture"]) b.addEventListener(n, stop);
       b.addEventListener("contextmenu", ev => ev.preventDefault());
       return b;
     };
@@ -341,7 +392,11 @@
   TurtleWeb.prototype.updatePad = function () {
     const coarse = global.matchMedia && global.matchMedia("(pointer: coarse)").matches;
     const want = this.opts.pad === undefined ? coarse : !!this.opts.pad;
-    this.pad.hidden = !(this.listening && want && !TERMINAL[this.state]);
+    const on = this.listening && want && !TERMINAL[this.state];
+    this.pad.hidden = !on;
+    this.kbdBtn.hidden = !(this.listening && (this.opts.keyboardButton === undefined ? coarse : !!this.opts.keyboardButton) &&
+      !TERMINAL[this.state]);
+    if (this.kbdBtn.hidden && document.activeElement === this.keyField) this.keyField.blur();
   };
 
   TurtleWeb.prototype.showAsk = function (m) {
