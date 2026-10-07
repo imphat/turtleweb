@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>turtleweb M0: canvas falso</title>
+<style>
+  body { font-family: sans-serif; margin: 12px; }
+  canvas { border: 1px solid #888; touch-action: none; }
+  #ask { display: none; margin: 8px 0; }
+</style>
+</head>
+<body>
+<p>Estado: <span id="status">conectando</span>
+  <button id="close">Fechar a janela</button></p>
+<div id="ask"><span id="askprompt"></span> <input id="askvalue">
+  <button id="askok">OK</button> <button id="askcancel">Cancelar</button></div>
+<canvas id="cv" width="640" height="600"></canvas>
+<pre id="out"></pre>
+<script>
+"use strict";
+const cv = document.getElementById("cv");
+const ctx = cv.getContext("2d");
+const items = new Map();   // id -> {kind, coords, opts}
+let order = [];            // z-order, bottom first
+let bg = "#ffffff";
+let dirty = false;
+const statusEl = document.getElementById("status");
+
+function send(obj) {
+  return fetch("/input", {method: "POST", headers: {"Content-Type": "application/json"},
+                          body: JSON.stringify(obj)});
+}
+
+function apply(op) {
+  const [name, a, b, c, d] = op;
+  switch (name) {
+    case "create": items.set(a, {kind: b, coords: c, opts: d}); order.push(a); break;
+    case "coords": items.get(a).coords = b; break;
+    case "config": Object.assign(items.get(a).opts, b); break;
+    case "raise": order = order.filter(x => x !== a); order.push(a); break;
+    case "lower": order = order.filter(x => x !== a); order.unshift(a); break;
+    case "delete":
+      if (a === "all") { items.clear(); order = []; }
+      else { items.delete(a); order = order.filter(x => x !== a); }
+      break;
+    case "bg": bg = a; break;
+    case "geometry": cv.width = a; cv.height = b; break;
+    case "title": document.title = a; break;
+    case "waiting": statusEl.textContent = "esperando (done/mainloop)"; break;
+    case "ask": showAsk(b, c); break;
+    case "print": document.getElementById("out").textContent += a + "\n"; break;
+    case "exit": statusEl.textContent = "terminou (código " + a + ")"; break;
+  }
+  dirty = true;
+}
+
+function font(f) {
+  if (!f) return "10.7px Arial";
+  const [family, size, style] = f;
+  const px = Math.abs(size) * 4 / 3;  // Tk sizes are points
+  const st = (style || "").includes("bold") ? "bold " : "";
+  const it = (style || "").includes("italic") ? "italic " : "";
+  return it + st + px + "px " + family;
+}
+
+function draw() {
+  if (dirty) {
+    dirty = false;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.translate(cv.width / 2, cv.height / 2);
+    for (const id of order) {
+      const it = items.get(id), p = it.coords, o = it.opts;
+      if (it.kind === "line" && o.fill && p.length >= 4) {
+        ctx.beginPath(); ctx.moveTo(p[0], p[1]);
+        for (let i = 2; i < p.length; i += 2) ctx.lineTo(p[i], p[i + 1]);
+        ctx.strokeStyle = o.fill; ctx.lineWidth = o.width || 1;
+        ctx.lineCap = ctx.lineJoin = "round"; ctx.stroke();
+      } else if (it.kind === "polygon" && p.length >= 6 && (o.fill || o.outline)) {
+        ctx.beginPath(); ctx.moveTo(p[0], p[1]);
+        for (let i = 2; i < p.length; i += 2) ctx.lineTo(p[i], p[i + 1]);
+        ctx.closePath();
+        if (o.fill) { ctx.fillStyle = o.fill; ctx.fill(); }
+        if (o.outline) { ctx.strokeStyle = o.outline; ctx.lineWidth = o.width || 1; ctx.stroke(); }
+      } else if (it.kind === "text") {
+        ctx.font = font(o.font); ctx.fillStyle = o.fill || "#000";
+        ctx.textAlign = {sw: "left", s: "center", se: "right"}[o.anchor] || "left";
+        ctx.textBaseline = "bottom";
+        ctx.fillText(o.text || "", p[0], p[1]);
+      }
+    }
+  }
+  requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+
+function showAsk(title, prompt) {
+  document.getElementById("askprompt").textContent = title + ": " + prompt;
+  document.getElementById("ask").style.display = "block";
+  document.getElementById("askvalue").focus();
+}
+function answer(v) {
+  document.getElementById("ask").style.display = "none";
+  send({t: "answer", v: v});
+}
+document.getElementById("askok").onclick = () => answer(document.getElementById("askvalue").value);
+document.getElementById("askcancel").onclick = () => answer(null);
+document.getElementById("close").onclick = () => send({t: "close"});
+
+cv.addEventListener("pointerdown", ev => {
+  const r = cv.getBoundingClientRect();
+  send({t: "click", b: 1, x: ev.clientX - r.left, y: ev.clientY - r.top});
+});
+document.addEventListener("keydown", ev => {
+  if (document.activeElement.tagName === "INPUT") return;
+  send({t: "key", k: ev.key.startsWith("Arrow") ? ev.key.slice(5) : ev.key, c: ev.key});
+});
+
+const prog = new URLSearchParams(location.search).get("prog") || "quadrado_circulo";
+fetch("/run?prog=" + encodeURIComponent(prog), {method: "POST"}).then(() => {
+  const es = new EventSource("/events");
+  es.onopen = () => { if (statusEl.textContent === "conectando") statusEl.textContent = "rodando"; };
+  es.onmessage = ev => { for (const op of JSON.parse(ev.data)) apply(op); };
+});
+</script>
+</body>
+</html>
