@@ -4,7 +4,11 @@ import sys
 
 if os.environ.get("TURTLEWEB_PORT") or os.environ.get("TURTLEWEB") == "1":
     try:
-        import turtleweb
+        try:
+            import turtleweb
+        except ImportError:  # not installed for this interpreter: use the server's copy, after everything else
+            sys.path.append(os.environ.get("TURTLEWEB_PATH", ""))
+            import turtleweb
         turtleweb.install()
     except Exception:  # never stop the child program because of the integration
         import traceback

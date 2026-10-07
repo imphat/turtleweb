@@ -1,6 +1,6 @@
 """Demo server: pick a program, run it, watch it draw.
 
-    ~/.venvs/turtleweb/bin/python demo/app.py [--port 5000] [--programs corpus] [--python /usr/bin/python3.13]
+    ~/.venvs/turtleweb/bin/python demo/app.py [--host 0.0.0.0] [--port 5000] [--programs corpus] [--python /usr/bin/python3.13]
 """
 import argparse
 import os
@@ -57,8 +57,9 @@ def create_app(programs_dir=None, python=None, env=None):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
+    ap.add_argument("--host", default="127.0.0.1", help="use 0.0.0.0 para abrir de outro aparelho (iPad)")
     ap.add_argument("--port", type=int, default=5000)
     ap.add_argument("--programs")
     ap.add_argument("--python")
     a = ap.parse_args()
-    create_app(a.programs, a.python).run("127.0.0.1", a.port, threaded=True)
+    create_app(a.programs, a.python).run(a.host, a.port, threaded=True)

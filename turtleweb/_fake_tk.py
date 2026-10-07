@@ -137,11 +137,17 @@ def _call(func, *args):
             func(*args)
         except SystemExit:
             raise
-        except BaseException:
+        except BaseException as exc:
+            if type(exc).__name__ == "Terminator" and _closed[0]:
+                return  # the window was closed under a running callback: nothing to report
             traceback.print_exc()
 
 
 def _run_due_timers():
+    root = _root[0]
+    if root is not None and not root._alive:
+        _timers.clear()  # destroying the window cancels its pending timers, as in Tk
+        return False
     ran = False
     while _timers and _timers[0][0] <= time.monotonic():
         _, seq, func, args = heapq.heappop(_timers)

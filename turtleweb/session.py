@@ -81,12 +81,13 @@ def child_env(session=None, env=None, log=None):
     """Environment for the child process: sitecustomize on PYTHONPATH, channel port and token."""
     env = dict(os.environ if env is None else env)
     pkg_parent = os.path.dirname(os.path.dirname(os.path.abspath(turtleweb.__file__)))
-    parts = [turtleweb.boot_dir(), pkg_parent]
+    parts = [turtleweb.boot_dir()]
     if env.get("PYTHONPATH"):
         parts.append(env["PYTHONPATH"])
     env["PYTHONPATH"] = os.pathsep.join(parts)
     env["PYTHONUTF8"] = "1"
     env["TURTLEWEB"] = "1"
+    env["TURTLEWEB_PATH"] = pkg_parent  # last-resort import path (a checkout that is not pip-installed)
     if session is not None:
         env["TURTLEWEB_PORT"] = str(session.port)
         env["TURTLEWEB_TOKEN"] = session.token

@@ -9,7 +9,9 @@ Ramo: `turtleweb-m1-m6`. Um commit por marco ("M1: ..."). Regras de parada: ver 
 | M3 | pronto (RELATORIO-M3.md) |
 | M4 | pronto (RELATORIO-M4.md) |
 | M5 | pronto (RELATORIO-M5.md) |
-| M6 | não começado |
+| M6 | pronto (RELATORIO-M6.md) |
+
+Todos os marcos prontos: ver `RELATORIO-FINAL.md`.
 
 ## Comandos
 ```
