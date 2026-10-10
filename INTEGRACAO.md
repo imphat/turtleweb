@@ -1,107 +1,194 @@
-# INTEGRACAO: plugar o turtleweb no app em uma tarde
+# Guia de integração
 
-O programa da criança **não muda uma linha**: continua `import turtle`. O app só (1) instala a biblioteca, (2) muda o
-**ambiente** do processo filho e (3) serve a página.
+Este guia é para quem já tem um app que roda programas Python de alunos e quer que o `turtle` desenhe no navegador em vez
+de abrir uma janela no servidor. Dá para fazer numa tarde. Se você está começando do zero, olhe primeiro o
+`demo/minimo.py`: ele já faz tudo isto num arquivo só.
 
-## 0. O que muda para o app
-| Hoje | Com o turtleweb |
-|---|---|
-| o filho abre uma janela do Tk no computador do app | o filho desenha numa página no navegador |
-| precisa de `python3-tk` (e de tela) | **não** precisa de Tkinter nem de tela no servidor |
-| `PP_TURTLE_LOG` grava a lista de comandos | **igual**: mesmo arquivo, mesmo formato (SPEC seção 5) |
-| `input()`/`print()` pelo stdin/stdout do filho | **igual**: o turtleweb não toca neles (o canal é um socket em 127.0.0.1) |
-| ■ Parar mata o processo | **igual**; a página passa a mostrar "parado" |
+## A ideia em uma frase
 
-## 1. Instalar (no mesmo ambiente do app)
+Você continua rodando o programa do aluno do mesmo jeito que roda hoje, só que com algumas variáveis de ambiente a mais.
+Elas fazem o Python do aluno carregar o turtleweb antes de qualquer coisa, e o turtleweb manda o desenho para o seu
+servidor, que manda para a página.
+
+O que **não** muda:
+
+- o programa do aluno: continua `import turtle`, nem uma linha diferente;
+- o `input()` e o `print()`: o turtleweb não usa a entrada nem a saída do programa (ele conversa por um socket local), então
+  o seu app continua lendo e escrevendo nelas como sempre;
+- o botão de parar: matar o processo continua funcionando, e a página passa a mostrar "parado";
+- a lista de comandos (`PP_TURTLE_LOG`), se você usa: mesmo arquivo, mesmo formato.
+
+O que muda: o servidor não precisa mais de Tkinter nem de tela. Pode desinstalar o `python3-tk` e o `xvfb`, se estavam lá
+só por causa do turtle.
+
+## 1. Instalar
+
+No mesmo ambiente Python do seu app:
+
 ```
-pip install /caminho/para/turtleweb        # ou: pip install turtleweb-0.1.0-py3-none-any.whl
-pip install flask                          # se o app usa Flask (o blueprint de exemplo precisa)
+pip install git+https://github.com/imphat/turtleweb
+pip install flask        # só se for usar o blueprint pronto
 ```
-Python 3.10 ou mais novo. Sem outras dependências.
 
-## 2. Trocar o ambiente do processo filho
-Onde o app hoje faz `subprocess.Popen([sys.executable, "-u", programa], cwd=pasta, env=..., ...)`:
+Precisa do Python 3.10 ou mais novo. O turtleweb não tem dependências.
+
+## 2. Rodar o programa do aluno com o ambiente do turtleweb
+
+Em algum lugar o seu app faz algo parecido com isto:
+
+```python
+proc = subprocess.Popen([sys.executable, "-u", programa], cwd=pasta, env=meu_env,
+                        stdin=..., stdout=..., stderr=...)
+```
+
+Com o turtleweb fica assim:
 
 ```python
 from turtleweb import Session
 from turtleweb.session import child_env
 
-session = Session()                                   # abre o socket em 127.0.0.1:<porta livre>
-env = child_env(session, base_env, log=caminho_do_PP_TURTLE_LOG)   # base_env = o env que o app já usa
+session = Session()                                   # abre um socket em 127.0.0.1, numa porta livre
+env = child_env(session, meu_env, log=caminho_do_log) # log= é opcional (é o PP_TURTLE_LOG)
 proc = subprocess.Popen([sys.executable, "-u", programa], cwd=pasta, env=env,
-                        stdin=..., stdout=..., stderr=...)           # exatamente como hoje
-session.attach(proc)                                  # para o código de saída e o ■ Parar
+                        stdin=..., stdout=..., stderr=...)   # igualzinho a antes
+session.attach(proc)                                  # a sessão fica sabendo quando o programa termina
 ```
-`child_env` só acrescenta variáveis: `PYTHONPATH` (com a pasta do `sitecustomize` do turtleweb, **antes** dos outros itens), `PYTHONUTF8=1`,
-`TURTLEWEB=1`, `TURTLEWEB_PORT`, `TURTLEWEB_TOKEN`, `TURTLEWEB_PATH` e, se você passar `log=`, `PP_TURTLE_LOG`.
 
-O que acontece no filho: o Python roda o `sitecustomize`, que chama `turtleweb.install()` **antes** de qualquer `import turtle`;
-essa função põe um `tkinter` falso em `sys.modules`, conecta ao socket e prepara a lista de comandos. O `turtle` da biblioteca
-padrão roda **sem alteração**. Não existe um `turtle.py` próprio.
+A `Session` representa uma execução: ela recebe o desenho do programa, guarda o que a página precisa e repassa para o
+programa os cliques e as teclas que vêm da página.
 
-- Quer chamar à mão (sem sitecustomize)? `import turtleweb; turtleweb.install()` na primeira linha, ou `python -m turtleweb programa.py`.
-- Já existe um `sitecustomize` no sistema? O do turtleweb o executa em seguida.
-- Interpretador diferente do do app? Instale o turtleweb nele, ou deixe `TURTLEWEB_PATH` (já posto por `child_env`) apontar para a cópia do servidor.
-- Programa que não usa `turtle`: nada muda (só conecta e avisa que terminou).
+O `child_env` só **acrescenta** variáveis ao ambiente que você passou:
 
-## 3. Servir a página
-Com Flask (blueprint de exemplo):
+| Variável | Para quê |
+|---|---|
+| `PYTHONPATH` | ganha, no começo, a pasta do `sitecustomize` do turtleweb |
+| `TURTLEWEB`, `TURTLEWEB_PORT`, `TURTLEWEB_TOKEN` | ligam o turtleweb e dizem onde está o servidor (o token impede que outro processo se conecte) |
+| `TURTLEWEB_PATH` | onde achar o turtleweb se ele não estiver instalado no Python do aluno |
+| `PYTHONUTF8` | texto em UTF-8 em qualquer sistema |
+| `PP_TURTLE_LOG` | só se você passar `log=` |
+
+### O que acontece dentro do processo do aluno
+
+Quando o Python começa, ele executa automaticamente um arquivo chamado `sitecustomize`, se achar um no caminho. O
+turtleweb usa isso: o dele chama `turtleweb.install()`, que coloca um `tkinter` falso no lugar do verdadeiro e se conecta
+ao servidor. Quando o programa faz `import turtle`, o turtle da biblioteca padrão é carregado normalmente e passa a
+desenhar no Tk falso, sem saber de nada.
+
+Algumas situações que você pode encontrar:
+
+- **Já existe um `sitecustomize` no sistema** (algumas distribuições Linux têm): o do turtleweb executa o outro logo depois.
+- **O aluno usa outro Python** que não o do app: instale o turtleweb nele também, ou deixe como está, porque o
+  `TURTLEWEB_PATH` aponta para a cópia do servidor.
+- **O programa não usa `turtle`**: nada muda para ele.
+- **Prefere não usar `sitecustomize`**: rode o programa com `python -m turtleweb programa.py`, ou ponha
+  `import turtleweb; turtleweb.install()` antes do `import turtle`.
+
+## 3. Mostrar o desenho na página
+
+### Com Flask
+
+O blueprint já traz as rotas:
+
 ```python
-from turtleweb.flask_blueprint import create_blueprint
 from turtleweb import Hub
+from turtleweb.flask_blueprint import create_blueprint
 
-hub = Hub()                                  # guarda as execuções por id
+hub = Hub()                    # guarda as execuções, cada uma com um id
 app.register_blueprint(create_blueprint(hub), url_prefix="/turtleweb")
-...
-hub.add(session)                             # depois de criar a Session no passo 2
-return {"sid": session.sid}                  # a página usa este id
 ```
-Rotas (relativas ao prefixo): `GET /turtleweb.js`, `GET /events/<sid>` (SSE), `POST /input/<sid>`, `POST /stop/<sid>`, `GET /status/<sid>`.
-Outro framework (FastAPI, Django...)? Use só `Session`: `session.iter_events(start)` gera os eventos SSE,
-`session.send(msg)` entrega a mensagem da página ao programa, `session.stop()` é o ■ Parar. O contrato está em `docs/contrato.md`.
 
-Na página do app:
+Depois de criar a `Session` (passo 2), registre-a e devolva o id para a página:
+
+```python
+hub.add(session)
+return {"sid": session.sid}
+```
+
+As rotas, relativas ao prefixo:
+
+| Rota | O que faz |
+|---|---|
+| `GET /turtleweb.js` | o script da página |
+| `GET /events/<sid>` | o desenho e os avisos, em tempo real (server-sent events) |
+| `POST /input/<sid>` | cliques, teclas e respostas da página para o programa |
+| `POST /stop/<sid>` | para o programa |
+| `GET /status/<sid>` | o estado atual (`running`, `waiting`, `ended`...) |
+
+### Na página
+
 ```html
 <div id="area"></div>
 <script src="/turtleweb/turtleweb.js"></script>
 <script>
   const tw = TurtleWeb.mount(document.getElementById("area"), {
     base: "/turtleweb",
-    onstate: (estado, codigo) => {},        // "running", "waiting", "ended", "error", "stopped", "offline"
-    onoutput: (fluxo, texto) => {},         // só se o servidor repassar stdout/stderr (Session.start faz isso)
+    onstate: (estado, codigo) => { /* opcional: atualizar a sua interface */ },
   });
-  // depois de o servidor iniciar uma execução:
-  tw.attach(sid);                           // chamar de novo a cada execução nova: a página é limpa
+
+  // quando o servidor iniciar uma execução:
+  tw.attach(sid);
 </script>
 ```
-Opções de `mount`: `pad: true|false` (botões de seta; padrão: só em tela de toque e só depois de `listen()`),
-`reduceMotion` (padrão: segue o aparelho), `title: false` (não mudar o título da aba).
 
-## 4. O ■ Parar
-Pode continuar matando o processo como hoje: código de saída negativo vira "parado" na página. Se preferir, chame
-`session.stop()` (termina o processo e marca "parado").
+O `mount` cria a área de desenho, a linha de estado e os botões "Fechar a janela" e "Mais rápido". Cada `attach` começa
+uma execução nova e limpa a tela.
 
-## 5. A lista de comandos (`PP_TURTLE_LOG`) continua igual
-Mesmo arquivo, uma linha JSON por comando de nível mais alto, apelidos viram o nome canônico, números com 3 casas, texto até 30
-caracteres. Os 35 programas determinísticos do `corpus/` dão listas **idênticas** às esperadas (`tests/test_comandos.py`), nos
-Pythons 3.10, 3.11 e 3.13 e **sem Tkinter**. Só comandos chamados pelo programa entram; os chamados por dentro (ex.: o `forward` dentro de
-`circle`) não, e os chamados dentro de um callback de tecla/clique/timer entram como comandos próprios.
+Opções do `mount`:
 
-## 6. Implantação (Raspberry Pi etc.)
-- **SSE precisa de uma thread por página aberta**: use o servidor de desenvolvimento com `threaded=True`, `waitress` ou `gunicorn -k gthread --threads 16`.
-- **Um processo só** (ou afinidade de sessão): as execuções ficam na memória do processo que as criou.
-- Atrás de nginx: `proxy_buffering off;` nas rotas `/turtleweb/events/` (o blueprint já manda `X-Accel-Buffering: no`).
-- O servidor e o filho conversam só por 127.0.0.1; o socket exige o token de `TURTLEWEB_TOKEN`.
-- **O blueprint não tem login.** Proteja `/events`, `/input` e `/stop` com a autenticação do app (os ids são aleatórios, mas isso não é autenticação).
-- Execuções antigas: o `Hub` guarda as últimas 20 (`Hub(keep=N)`); o histórico de cada uma é limitado (vira um retrato a cada 3000 eventos).
+| Opção | Padrão | Para quê |
+|---|---|---|
+| `base` | `""` | onde o blueprint foi registrado |
+| `onstate(estado, codigo)` | | avisa quando o programa começa, espera, termina, dá erro, é parado ou a conexão cai (`"offline"`) |
+| `onoutput(fluxo, texto)` | | recebe a saída do programa, se o servidor repassar (o `Session.start` repassa; o `attach` com `Popen` próprio não) |
+| `pad` | só em tela de toque | botões de seta na tela, quando o programa chama `listen()` |
+| `keyboardButton` | só em tela de toque | botão "⌨️ Teclado", que abre o teclado do aparelho |
+| `reduceMotion` | segue o aparelho | começa sem animação para quem ativou "reduzir movimento" |
+| `title` | `true` | `false` para o programa não mudar o título da aba |
+
+### Sem Flask
+
+Use a `Session` direto. `session.iter_events(inicio)` gera os eventos para você mandar como server-sent events,
+`session.send(mensagem)` entrega uma mensagem da página ao programa e `session.stop()` para tudo. O formato das mensagens
+está em [docs/contrato.md](docs/contrato.md). A rota de eventos deve aceitar o cabeçalho `Last-Event-ID` e o parâmetro
+`?last=`, que a página usa para retomar depois de uma queda de conexão (no iPad isso acontece toda vez que a tela
+bloqueia).
+
+## 4. Parar o programa
+
+Se o seu app já mata o processo, continue assim: a página mostra "parado". Se preferir, chame `session.stop()`, que faz o
+mesmo.
+
+## 5. A lista de comandos (`PP_TURTLE_LOG`)
+
+Se o seu app usa esse arquivo para conferir exercícios, nada muda. Cada linha é um comando que o programa chamou,
+em JSON, com os apelidos trocados pelo nome principal (`fd` vira `forward`, `pu` vira `penup`), números com três casas e
+texto cortado em 30 caracteres. Só entram os comandos chamados pelo próprio programa: o `circle` aparece, os passinhos que
+ele faz por dentro não. Comandos dentro de uma função de tecla, clique ou timer entram normalmente.
+
+## 6. Colocando no ar
+
+- **Threads**: cada página aberta mantém uma conexão de eventos aberta. Use um servidor com threads: o do Flask com
+  `threaded=True`, o `waitress`, ou `gunicorn -k gthread --threads 16`.
+- **Um processo só**: as execuções ficam na memória do processo que as criou. Com vários processos, a página pode cair num
+  que não conhece a execução.
+- **Atrás do nginx**: desligue o buffer nas rotas de eventos (`proxy_buffering off;`), senão o desenho chega aos pedaços.
+- **Segurança**: o blueprint não tem login. Os ids são aleatórios, mas isso não é autenticação; se o servidor é acessível
+  por outras pessoas, proteja as rotas com o login do seu app. O canal entre servidor e programa só aceita conexões locais
+  e exige o token.
+- **Memória**: o `Hub` guarda as últimas 20 execuções (`Hub(keep=N)` para mudar), e uma execução longa não acumula
+  histórico sem fim: de tempos em tempos ele vira um retrato do desenho atual.
 
 ## 7. Velocidade
-Por padrão a animação dura o mesmo que no Tk (a espiral de referência leva ~13 s). A página tem o botão **Mais rápido** (÷8, mesmo
-desenho). Aparelhos com "Reduzir movimento" ligado começam em modo instantâneo.
 
-## 8. Checklist de uma tarde
-1. `pip install` e rodar `tests` (`cd tests && python -m pytest -q`; os testes de geometria e de navegador pulam sozinhos sem `xvfb`/Chromium).
-2. Passo 2 no lugar onde o app inicia o processo; passo 3 para a rota e a página.
-3. Abrir `referencia-quadrado`: quadrado na página, `PP_TURTLE_LOG` igual ao esperado.
-4. `referencia-controle-setas` (teclas e botões de seta), `ideia-poligono_medida` (`textinput`), ■ Parar.
-5. `TESTE-IPAD.md` no aparelho de verdade.
+Por padrão a tartaruga anda na mesma velocidade do Tk, porque é isso que o aluno espera ver e é isso que o professor
+explicou. Quem tem pressa aperta **Mais rápido** (oito vezes mais rápido, mesmo desenho). Quem ativou "reduzir movimento"
+no aparelho já começa sem animação.
+
+## 8. Roteiro da tarde
+
+1. Instale e rode os testes (`cd tests && python -m pytest -q`).
+2. Troque o `Popen` como no passo 2 e registre o blueprint como no passo 3.
+3. Rode `corpus/referencia-quadrado.py`: o quadrado aparece na página, e o `PP_TURTLE_LOG` sai igual ao
+   `referencia-quadrado.esperado.json`.
+4. Teste um programa com teclado (`referencia-controle-setas`), um com pergunta (`ideia-poligono_medida`) e o botão de parar.
+5. Siga o [roteiro do iPad](TESTE-IPAD.md) num aparelho de verdade.
