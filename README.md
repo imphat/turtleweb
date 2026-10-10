@@ -178,3 +178,8 @@ etapa estão no repositório: [PESQUISA.md](PESQUISA.md), [DECISOES.md](DECISOES
 
 Contribuições são muito bem-vindas: um programa de turtle que não funciona direito, um teste num navegador diferente, uma
 correção. Abra uma issue ou mande um pull request.
+
+## Licença
+
+MIT. Pode usar, modificar e distribuir à vontade, inclusive em projetos comerciais; só mantenha o aviso de copyright.
+Detalhes em [LICENSE](LICENSE).
