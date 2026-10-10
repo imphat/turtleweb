@@ -83,4 +83,4 @@ Todas funcionam do mesmo jeito no turtle de verdade:
 ## Resultado do último teste
 
 Em outubro de 2026, num iPad 7ª geração com iOS 18.7.4 e Safari, com o servidor num Mac: todos os itens funcionaram depois
-das correções do [RELATORIO-IPAD.md](RELATORIO-IPAD.md).
+das correções do [relatório do teste no iPad](docs/historia/RELATORIO-IPAD.md).

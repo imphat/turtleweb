@@ -114,7 +114,7 @@ As opções possíveis são `fill`, `outline`, `width`, `capstyle`, `joinstyle`,
 Não passa pelo canal. Se a variável `PP_TURTLE_LOG` aponta para um arquivo, o programa grava nele uma linha JSON para cada
 comando de turtle que chamou diretamente, por exemplo `["forward", 100.0]`. Apelidos viram o nome principal, números saem
 com três casas, textos são cortados em 30 caracteres e só os argumentos posicionais entram (o `font=` do `write` não). A
-especificação completa está na seção 5 do [SPEC.md](../SPEC.md).
+especificação completa está na seção 5 do [especificação](historia/SPEC.md).
 
 ## 5. Versão
 

@@ -1,9 +1,9 @@
 # turtleweb: regras de trabalho
 
 Projeto: uma biblioteca que faz o `import turtle` de um programa Python desenhar **dentro do navegador**, com o Python rodando no
-servidor. Leia `SPEC.md` inteiro antes de qualquer ação. Ele manda; este arquivo só diz como trabalhar.
+servidor. Leia `docs/historia/SPEC.md` inteiro antes de qualquer ação. Ele manda; este arquivo só diz como trabalhar.
 
-## Ambiente (verificado em 2026-10-06; o resumo está em `AMBIENTE.md` se o João o mesclou)
+## Ambiente (verificado em 2026-10-06; o resumo está em `docs/historia/AMBIENTE.md`)
 - **Python:** o `python3` padrão é o 3.13 e **não tem Tkinter**. Use **`~/.venvs/turtleweb/bin/python`** (Python 3.12, com Tkinter,
   pytest, flask e playwright instalados pelo script de configuração). Se esse ambiente não existir, crie com
   `python3.12 -m venv ~/.venvs/turtleweb && ~/.venvs/turtleweb/bin/pip install pytest flask playwright`.
@@ -15,7 +15,7 @@ servidor. Leia `SPEC.md` inteiro antes de qualquer ação. Ele manda; este arqui
 - A biblioteca precisa funcionar no Python **3.10 ou mais novo** (o Raspberry traz o 3.11), então não use sintaxe do 3.12 ou 3.13.
 
 ## Como trabalhar aqui
-- **Um marco por sessão** (o prompt diz qual). Ao terminar: escreva `RELATORIO-Mx.md`, abra o pull request e **pare**.
+- **Um marco por sessão** (o prompt diz qual). Ao terminar: escreva `docs/historia/RELATORIO-Mx.md`, abra o pull request e **pare**.
 - Código e identificadores em inglês; comentários curtos e só onde a razão não é óbvia; textos para pessoas (relatórios,
   documentação, mensagens de erro que a criança poderia ver) em **português do Brasil**.
 - **Testes primeiro no que dá para testar sem navegador**: lista de comandos contra `corpus/*.esperado.json`. Navegador sem

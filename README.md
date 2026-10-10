@@ -164,7 +164,7 @@ turtleweb/       a biblioteca
 demo/            servidor de demonstração (app.py) e o exemplo mínimo (minimo.py)
 corpus/          os programas de teste e o resultado esperado de cada um
 tests/           a suíte de testes
-docs/            como funciona por dentro e o formato das mensagens
+docs/            como funciona por dentro, o formato das mensagens e a história do projeto
 ```
 
 ## De onde veio
@@ -173,8 +173,7 @@ O turtleweb nasceu para um app em que crianças de 8 a 12 anos aprendem Python c
 servidor (um Raspberry Pi, por exemplo) e usar de qualquer aparelho, inclusive um iPad, sem mudar uma linha dos
 programas que as crianças já escrevem. Antes de escrever código, procuramos o que já existia (Skulpt, Brython, Pyodide, ColabTurtle e
 outros); nenhum rodava o Python no servidor com eventos e `textinput`. Essa pesquisa, as decisões e os relatórios de cada
-etapa estão no repositório: [PESQUISA.md](PESQUISA.md), [DECISOES.md](DECISOES.md), [SPEC.md](SPEC.md) e os arquivos
-`RELATORIO-*.md`.
+etapa estão em [docs/historia](docs/historia/): a especificação, a pesquisa, as decisões e os relatórios.
 
 Contribuições são muito bem-vindas: um programa de turtle que não funciona direito, um teste num navegador diferente, uma
 correção. Abra uma issue ou mande um pull request.
